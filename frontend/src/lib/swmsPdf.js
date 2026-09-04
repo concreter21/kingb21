@@ -96,7 +96,7 @@ const drawSection = (doc, title, items, y, color, symbol) => {
   return y + 4;
 };
 
-const drawSignatures = (doc, y) => {
+const drawSignatures = (doc, y, signatures) => {
   const pageWidth = doc.internal.pageSize.getWidth();
   if (y > 240) {
     doc.addPage();
@@ -104,7 +104,7 @@ const drawSignatures = (doc, y) => {
   }
 
   doc.setFillColor(246, 248, 251);
-  doc.roundedRect(15, y, pageWidth - 30, 40, 2, 2, "F");
+  doc.roundedRect(15, y, pageWidth - 30, 46, 2, 2, "F");
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10);
@@ -123,7 +123,16 @@ const drawSignatures = (doc, y) => {
 
   const col1x = 20;
   const col2x = pageWidth / 2 + 5;
-  const lineY = y + 34;
+  const sigY = y + 22;
+  const lineY = y + 38;
+
+  // Embed signature images if provided
+  if (signatures?.supervisor) {
+    try { doc.addImage(signatures.supervisor, "PNG", col1x, sigY, 60, 14); } catch (_) {}
+  }
+  if (signatures?.crew) {
+    try { doc.addImage(signatures.crew, "PNG", col2x, sigY, 60, 14); } catch (_) {}
+  }
 
   doc.setDrawColor(148, 163, 184);
   doc.line(col1x, lineY, col1x + 70, lineY);
@@ -131,8 +140,14 @@ const drawSignatures = (doc, y) => {
 
   doc.setFontSize(8);
   doc.setTextColor(100, 116, 139);
-  doc.text("Site Supervisor", col1x, lineY + 4);
-  doc.text("Crew Member", col2x, lineY + 4);
+  doc.text(`Site Supervisor${signatures?.supervisorName ? " · " + signatures.supervisorName : ""}`, col1x, lineY + 4);
+  doc.text(`Crew Member${signatures?.crewName ? " · " + signatures.crewName : ""}`, col2x, lineY + 4);
+
+  if (signatures?.supervisor || signatures?.crew) {
+    doc.setFontSize(7);
+    doc.setTextColor(16, 185, 129);
+    doc.text(`Signed digitally · ${new Date().toLocaleString()}`, col1x, lineY + 9);
+  }
 };
 
 const drawFooter = (doc) => {
@@ -152,7 +167,7 @@ const drawFooter = (doc) => {
   }
 };
 
-export const exportSWMSPdf = ({ site, jobType, notes, aiResult, author = "M. Weber" }) => {
+export const exportSWMSPdf = ({ site, jobType, notes, aiResult, author = "M. Weber", signatures = null }) => {
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   const ref = `SWMS-${Date.now().toString().slice(-6)}`;
   const issued = new Date().toLocaleDateString("en-GB", {
@@ -191,7 +206,7 @@ export const exportSWMSPdf = ({ site, jobType, notes, aiResult, author = "M. Web
   y = drawSection(doc, "CONTROL MEASURES", aiResult.controls || [], y, [5, 150, 105], "+");
   y = drawSection(doc, "REQUIRED PPE", aiResult.ppe || [], y, [217, 119, 6], "•");
 
-  drawSignatures(doc, y + 4);
+  drawSignatures(doc, y + 4, signatures);
   drawFooter(doc);
 
   doc.save(`${ref}_${site.replace(/[^a-z0-9]/gi, "_").slice(0, 20)}.pdf`);

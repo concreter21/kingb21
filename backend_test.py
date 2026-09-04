@@ -7,7 +7,10 @@ Tests all backend endpoints including the new AI SWMS generation endpoint.
 import requests
 import json
 import time
+import base64
+import io
 from typing import Dict, Any
+from PIL import Image
 
 # Backend URL from frontend/.env
 BACKEND_URL = "https://komma5-safepro.preview.emergentagent.com/api"
@@ -32,6 +35,14 @@ def print_error(message: str):
 
 def print_warning(message: str):
     print(f"{Colors.YELLOW}⚠ {message}{Colors.END}")
+
+def generate_tiny_png_base64() -> str:
+    """Generate a small 8x8 red PNG image in base64 format"""
+    img = Image.new("RGB", (8, 8), (255, 0, 0))
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    b64 = base64.b64encode(buf.getvalue()).decode()
+    return b64
 
 def test_root_endpoint():
     """Test GET /api/ endpoint"""
@@ -442,6 +453,260 @@ def test_agent_chat_endpoint():
         print_error(f"Request failed: {str(e)}")
         return False
 
+def test_hazards_from_voice_endpoint():
+    """Test POST /api/hazards/from-voice endpoint"""
+    print_test_header("POST /api/hazards/from-voice - Voice Hazard Structuring")
+    
+    try:
+        # Test data from review request
+        test_data = {
+            "transcript": "There is an exposed live conductor near the junction box on the north side of the Hamburg warehouse. It looks pretty serious.",
+            "site": "Warehouse Array – Hamburg Hafen"
+        }
+        
+        print(f"Request payload:")
+        print(json.dumps(test_data, indent=2))
+        
+        # Track response time
+        start_time = time.time()
+        
+        response = requests.post(
+            f"{BACKEND_URL}/hazards/from-voice",
+            json=test_data,
+            timeout=35
+        )
+        
+        end_time = time.time()
+        response_time = end_time - start_time
+        
+        print(f"\nStatus Code: {response.status_code}")
+        print(f"Response Time: {response_time:.2f} seconds")
+        
+        # Check response time
+        if response_time < 30:
+            print_success(f"Response time ({response_time:.2f}s) is under 30 seconds")
+        else:
+            print_warning(f"Response time ({response_time:.2f}s) exceeds 30 seconds")
+        
+        # Check status code
+        if response.status_code == 200:
+            print_success("Voice hazard endpoint returned 200 status")
+        else:
+            print_error(f"Expected 200, got {response.status_code}")
+            print(f"Response body: {response.text}")
+            return False
+        
+        # Parse and validate response
+        try:
+            data = response.json()
+            print(f"\nResponse structure:")
+            print(json.dumps(data, indent=2))
+            
+            # Check required fields
+            required_fields = ["site", "hazard_type", "severity", "description"]
+            all_fields_present = True
+            
+            for field in required_fields:
+                if field in data:
+                    print_success(f"Response contains '{field}' field")
+                else:
+                    print_error(f"Response missing '{field}' field")
+                    all_fields_present = False
+            
+            if not all_fields_present:
+                return False
+            
+            # Validate site is a string
+            if isinstance(data["site"], str):
+                if len(data["site"]) > 0:
+                    print_success(f"'site' is a non-empty string: {data['site']}")
+                else:
+                    print_error("'site' is an empty string")
+                    return False
+            else:
+                print_error("'site' is not a string")
+                return False
+            
+            # Validate hazard_type is a string
+            if isinstance(data["hazard_type"], str):
+                if len(data["hazard_type"]) > 0:
+                    print_success(f"'hazard_type' is a non-empty string: {data['hazard_type']}")
+                else:
+                    print_error("'hazard_type' is an empty string")
+                    return False
+            else:
+                print_error("'hazard_type' is not a string")
+                return False
+            
+            # Validate severity is one of the allowed values
+            allowed_severities = ["low", "medium", "high", "critical"]
+            if data["severity"] in allowed_severities:
+                print_success(f"'severity' is valid: {data['severity']}")
+            else:
+                print_error(f"'severity' must be one of {allowed_severities}, got: {data['severity']}")
+                return False
+            
+            # Validate description is a string
+            if isinstance(data["description"], str):
+                if len(data["description"]) > 0:
+                    print_success(f"'description' is a non-empty string ({len(data['description'])} characters)")
+                    print(f"  Description: {data['description'][:150]}...")
+                    
+                    # Check if description is contextually accurate
+                    transcript_keywords = ["exposed", "live", "conductor", "junction", "box", "hamburg", "warehouse", "serious"]
+                    description_lower = data["description"].lower()
+                    relevant_count = sum(1 for keyword in transcript_keywords if keyword in description_lower)
+                    
+                    if relevant_count >= 2:
+                        print_success(f"Description appears contextually accurate (matched {relevant_count} keywords)")
+                    else:
+                        print_warning(f"Description may not be contextually accurate (matched only {relevant_count} keywords)")
+                else:
+                    print_error("'description' is an empty string")
+                    return False
+            else:
+                print_error("'description' is not a string")
+                return False
+            
+            return True
+            
+        except json.JSONDecodeError as e:
+            print_error(f"Failed to parse JSON response: {str(e)}")
+            print(f"Response text: {response.text}")
+            return False
+            
+    except requests.Timeout:
+        print_error("Request timed out (>35 seconds)")
+        return False
+    except Exception as e:
+        print_error(f"Request failed: {str(e)}")
+        return False
+
+def test_risk_assess_endpoint():
+    """Test POST /api/risk/assess endpoint with vision AI"""
+    print_test_header("POST /api/risk/assess - Vision Risk Assessment")
+    
+    try:
+        # Generate a small PNG image
+        tiny_png_base64 = generate_tiny_png_base64()
+        
+        # Test data from review request
+        test_data = {
+            "images": [tiny_png_base64],
+            "site": "Villa – Grunewald",
+            "job_type": "Rooftop PV Installation – 8kW Domestic",
+            "notes": "Steep tile roof"
+        }
+        
+        print(f"Request payload:")
+        print(f"  site: {test_data['site']}")
+        print(f"  job_type: {test_data['job_type']}")
+        print(f"  notes: {test_data['notes']}")
+        print(f"  images: [<base64 PNG image, {len(tiny_png_base64)} chars>]")
+        
+        # Track response time
+        start_time = time.time()
+        
+        response = requests.post(
+            f"{BACKEND_URL}/risk/assess",
+            json=test_data,
+            timeout=35
+        )
+        
+        end_time = time.time()
+        response_time = end_time - start_time
+        
+        print(f"\nStatus Code: {response.status_code}")
+        print(f"Response Time: {response_time:.2f} seconds")
+        
+        # Check response time
+        if response_time < 30:
+            print_success(f"Response time ({response_time:.2f}s) is under 30 seconds")
+        else:
+            print_warning(f"Response time ({response_time:.2f}s) exceeds 30 seconds")
+        
+        # Check status code
+        if response.status_code == 200:
+            print_success("Risk assessment endpoint returned 200 status")
+        else:
+            print_error(f"Expected 200, got {response.status_code}")
+            print(f"Response body: {response.text}")
+            return False
+        
+        # Parse and validate response
+        try:
+            data = response.json()
+            print(f"\nResponse structure:")
+            print(json.dumps(data, indent=2))
+            
+            # Check required fields
+            required_fields = ["observations", "hazards", "controls", "ppe", "summary", "risk_level"]
+            all_fields_present = True
+            
+            for field in required_fields:
+                if field in data:
+                    print_success(f"Response contains '{field}' field")
+                else:
+                    print_error(f"Response missing '{field}' field")
+                    all_fields_present = False
+            
+            if not all_fields_present:
+                return False
+            
+            # Validate list fields are non-empty
+            list_fields = ["observations", "hazards", "controls", "ppe"]
+            all_lists_valid = True
+            
+            for field in list_fields:
+                if isinstance(data[field], list):
+                    if len(data[field]) > 0:
+                        print_success(f"'{field}' is a non-empty list with {len(data[field])} items")
+                        # Show first item as sample
+                        print(f"  Sample: {data[field][0]}")
+                    else:
+                        print_error(f"'{field}' is an empty list")
+                        all_lists_valid = False
+                else:
+                    print_error(f"'{field}' is not a list")
+                    all_lists_valid = False
+            
+            if not all_lists_valid:
+                return False
+            
+            # Validate summary is a non-empty string
+            if isinstance(data["summary"], str):
+                if len(data["summary"]) > 0:
+                    print_success(f"'summary' is a non-empty string ({len(data['summary'])} characters)")
+                    print(f"  Summary: {data['summary'][:150]}...")
+                else:
+                    print_error("'summary' is an empty string")
+                    return False
+            else:
+                print_error("'summary' is not a string")
+                return False
+            
+            # Validate risk_level is one of the allowed values
+            allowed_risk_levels = ["low", "medium", "high", "critical"]
+            if data["risk_level"] in allowed_risk_levels:
+                print_success(f"'risk_level' is valid: {data['risk_level']}")
+            else:
+                print_error(f"'risk_level' must be one of {allowed_risk_levels}, got: {data['risk_level']}")
+                return False
+            
+            return True
+            
+        except json.JSONDecodeError as e:
+            print_error(f"Failed to parse JSON response: {str(e)}")
+            print(f"Response text: {response.text}")
+            return False
+            
+    except requests.Timeout:
+        print_error("Request timed out (>35 seconds)")
+        return False
+    except Exception as e:
+        print_error(f"Request failed: {str(e)}")
+        return False
+
 def run_all_tests():
     """Run all backend tests and report results"""
     print(f"\n{Colors.BLUE}{'='*80}{Colors.END}")
@@ -460,8 +725,14 @@ def run_all_tests():
     # Test 3: SWMS generation endpoint
     results["POST /api/swms/generate"] = test_swms_generate_endpoint()
     
-    # Test 4: Agent chat endpoint (NEW)
+    # Test 4: Agent chat endpoint
     results["POST /api/agent/chat"] = test_agent_chat_endpoint()
+    
+    # Test 5: Voice hazard endpoint (NEW)
+    results["POST /api/hazards/from-voice"] = test_hazards_from_voice_endpoint()
+    
+    # Test 6: Risk assessment endpoint (NEW)
+    results["POST /api/risk/assess"] = test_risk_assess_endpoint()
     
     # Summary
     print(f"\n{Colors.BLUE}{'='*80}{Colors.END}")

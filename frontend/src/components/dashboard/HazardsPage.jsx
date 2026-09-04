@@ -1,8 +1,11 @@
-import React, { useState, useRef } from "react";
-import { ShieldAlert, Plus, AlertTriangle, CheckCircle2, Clock, Eye, Camera, ImagePlus, X, Trash2 } from "lucide-react";
+import React, { useState, useRef, useEffect } from "react";
+import { ShieldAlert, Plus, AlertTriangle, CheckCircle2, Clock, Eye, Camera, ImagePlus, X, Trash2, Mic, MicOff, Sparkles, Loader2 } from "lucide-react";
+import axios from "axios";
 import DashboardLayout from "./DashboardLayout";
 import { hazards as initialHazards } from "../../mock";
 import { useToast } from "../../hooks/use-toast";
+
+const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 const severityStyles = {
   critical: "bg-rose-100 text-rose-800 border-rose-300",
@@ -27,8 +30,82 @@ const HazardsPage = () => {
   const [photos, setPhotos] = useState([]);
   const [hazards, setHazards] = useState(initialHazards);
   const [preview, setPreview] = useState(null);
+  const [listening, setListening] = useState(false);
+  const [transcript, setTranscript] = useState("");
+  const [structuring, setStructuring] = useState(false);
+  const [voiceUnsupported, setVoiceUnsupported] = useState(false);
+  const recognitionRef = useRef(null);
   const fileRef = useRef(null);
   const { toast } = useToast();
+
+  useEffect(() => {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) {
+      setVoiceUnsupported(true);
+      return;
+    }
+    const rec = new SR();
+    rec.continuous = true;
+    rec.interimResults = true;
+    rec.lang = "en-US";
+    rec.onresult = (e) => {
+      let text = "";
+      for (let i = 0; i < e.results.length; i++) {
+        text += e.results[i][0].transcript + " ";
+      }
+      setTranscript(text.trim());
+    };
+    rec.onend = () => setListening(false);
+    rec.onerror = () => setListening(false);
+    recognitionRef.current = rec;
+    return () => { try { rec.stop(); } catch (_) {} };
+  }, []);
+
+  const toggleListening = () => {
+    if (voiceUnsupported) {
+      toast({ title: "Voice not supported", description: "Your browser does not support speech recognition. Try Chrome.", variant: "destructive" });
+      return;
+    }
+    const rec = recognitionRef.current;
+    if (!rec) return;
+    if (listening) {
+      try { rec.stop(); } catch (_) {}
+      setListening(false);
+    } else {
+      setTranscript("");
+      try {
+        rec.start();
+        setListening(true);
+      } catch (err) {
+        toast({ title: "Mic error", description: err.message, variant: "destructive" });
+      }
+    }
+  };
+
+  const structureFromVoice = async () => {
+    if (!transcript.trim()) {
+      toast({ title: "Nothing to transcribe", description: "Speak first, then run AI.", variant: "destructive" });
+      return;
+    }
+    setStructuring(true);
+    try {
+      const res = await axios.post(`${API}/hazards/from-voice`, {
+        transcript,
+        site,
+      });
+      const d = res.data;
+      setSite(d.site);
+      setType(d.hazard_type);
+      setSeverity(d.severity);
+      setDescription(d.description);
+      toast({ title: "AI structured your report", description: `Severity: ${d.severity.toUpperCase()}` });
+    } catch (err) {
+      const detail = err.response?.data?.detail || err.message;
+      toast({ title: "AI parse failed", description: detail, variant: "destructive" });
+    } finally {
+      setStructuring(false);
+    }
+  };
 
   const counts = {
     critical: hazards.filter((h) => h.severity === "critical").length,
@@ -43,6 +120,10 @@ const HazardsPage = () => {
     setType("");
     setDescription("");
     setPhotos([]);
+    setTranscript("");
+    if (recognitionRef.current && listening) {
+      try { recognitionRef.current.stop(); } catch (_) {}
+    }
   };
 
   const handleFiles = (files) => {
@@ -197,6 +278,56 @@ const HazardsPage = () => {
             </div>
 
             <form onSubmit={submit} className="flex-1 overflow-y-auto px-6 py-5 space-y-3">
+              {/* Voice-to-report block */}
+              <div className="p-3 rounded-lg border border-indigo-100 bg-gradient-to-br from-indigo-50 to-purple-50">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-indigo-600" />
+                    <span className="text-[12px] font-semibold text-slate-900">Voice-to-Report</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={toggleListening}
+                    disabled={voiceUnsupported}
+                    className={`inline-flex items-center gap-1.5 h-8 px-3 rounded-full text-[11px] font-semibold transition-colors ${
+                      listening
+                        ? "bg-rose-600 hover:bg-rose-700 text-white"
+                        : "bg-white border border-slate-200 hover:border-slate-300 text-slate-700"
+                    } disabled:opacity-40 disabled:cursor-not-allowed`}
+                  >
+                    {listening ? (
+                      <><MicOff className="w-3.5 h-3.5" /> Stop</>
+                    ) : (
+                      <><Mic className="w-3.5 h-3.5" /> {voiceUnsupported ? "Not supported" : "Speak"}</>
+                    )}
+                  </button>
+                </div>
+                <div className="min-h-[52px] p-2 bg-white rounded-md border border-slate-200 text-[12px] text-slate-700 leading-relaxed">
+                  {transcript || (
+                    <span className="text-slate-400 italic">
+                      {listening
+                        ? "Listening… say something like: 'Exposed live conductor near junction box on the north side of the Hamburg warehouse, seems high risk.'"
+                        : "Tap Speak and describe the hazard. AI will fill the form for you."}
+                    </span>
+                  )}
+                  {listening && <span className="ml-1 inline-block w-1.5 h-3 bg-rose-500 animate-pulse align-middle" />}
+                </div>
+                <div className="flex justify-end mt-2">
+                  <button
+                    type="button"
+                    onClick={structureFromVoice}
+                    disabled={!transcript.trim() || structuring}
+                    className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-gradient-to-r from-indigo-600 to-purple-600 hover:opacity-90 text-white text-[11px] font-semibold transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    {structuring ? (
+                      <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Structuring…</>
+                    ) : (
+                      <><Sparkles className="w-3.5 h-3.5" /> Fill form with AI</>
+                    )}
+                  </button>
+                </div>
+              </div>
+
               <div>
                 <label className="text-[12px] font-medium text-slate-700 mb-1 block">Site</label>
                 <select

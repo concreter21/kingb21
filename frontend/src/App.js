@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import LoginPage from "./components/LoginPage";
 import DashboardHome from "./components/dashboard/DashboardHome";
 import SiteMapPage from "./components/dashboard/SiteMapPage";
+import RiskAssessorPage from "./components/dashboard/RiskAssessorPage";
 import SWMSPage from "./components/dashboard/SWMSPage";
 import HazardsPage from "./components/dashboard/HazardsPage";
 import LOTOPage from "./components/dashboard/LOTOPage";
@@ -17,6 +18,7 @@ function App() {
           <Route path="/" element={<LoginPage />} />
           <Route path="/dashboard" element={<DashboardHome />} />
           <Route path="/dashboard/map" element={<SiteMapPage />} />
+          <Route path="/dashboard/risk-ai" element={<RiskAssessorPage />} />
           <Route path="/dashboard/swms" element={<SWMSPage />} />
           <Route path="/dashboard/hazards" element={<HazardsPage />} />
           <Route path="/dashboard/loto" element={<LOTOPage />} />

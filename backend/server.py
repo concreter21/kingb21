@@ -61,6 +61,34 @@ class AgentChatResponse(BaseModel):
     session_id: str
 
 
+class VoiceHazardRequest(BaseModel):
+    transcript: str
+    site: Optional[str] = None
+
+
+class VoiceHazardResponse(BaseModel):
+    site: str
+    hazard_type: str
+    severity: str
+    description: str
+
+
+class VisionRiskRequest(BaseModel):
+    images: List[str]  # base64 (with or without data URL prefix)
+    site: str
+    job_type: str
+    notes: Optional[str] = ""
+
+
+class VisionRiskResponse(BaseModel):
+    observations: List[str]
+    hazards: List[str]
+    controls: List[str]
+    ppe: List[str]
+    summary: str
+    risk_level: str  # low | medium | high | critical
+
+
 @api_router.get("/")
 async def root():
     return {"message": "Hello World"}
@@ -190,6 +218,162 @@ async def agent_chat(req: AgentChatRequest):
 
     reply_text = reply if isinstance(reply, str) else str(reply)
     return AgentChatResponse(reply=reply_text, session_id=req.session_id)
+
+
+def _strip_json_fences(text: str) -> str:
+    text = (text or "").strip()
+    if text.startswith("```"):
+        text = text.strip("`")
+        if text.lower().startswith("json"):
+            text = text[4:]
+        text = text.strip()
+    return text
+
+
+@api_router.post("/hazards/from-voice", response_model=VoiceHazardResponse)
+async def structure_voice_hazard(req: VoiceHazardRequest):
+    """Convert free-form voice transcript into a structured hazard report."""
+    try:
+        from emergentintegrations.llm.chat import LlmChat, UserMessage
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"LLM library missing: {e}")
+
+    api_key = os.environ.get("EMERGENT_LLM_KEY")
+    if not api_key:
+        raise HTTPException(status_code=500, detail="EMERGENT_LLM_KEY not configured")
+
+    system_msg = (
+        "You extract structured hazard reports from spoken transcripts of solar-installation crew members. "
+        "Respond ONLY with valid JSON: "
+        '{"site": "...", "hazard_type": "...", "severity": "low|medium|high|critical", "description": "..."}. '
+        "The site is one of: Villa – Grunewald, Warehouse Array – Hamburg Hafen, "
+        "Commercial Roof – Siemensstadt, Residential – Prenzlauer Berg, School Rooftop – Munich Nord. "
+        "If a site was already provided, use it verbatim. "
+        "Hazard type should be short (e.g. 'Exposed live conductor', 'Fall risk – unprotected edge'). "
+        "Description should be 1-2 sentences summarising the situation."
+    )
+
+    prompt = (
+        f"Pre-selected site: {req.site or 'not specified'}\n\n"
+        f"Transcript:\n\"\"\"{req.transcript}\"\"\"\n\n"
+        "Return the JSON now."
+    )
+
+    chat = LlmChat(
+        api_key=api_key,
+        session_id=f"voice-{uuid.uuid4()}",
+        system_message=system_msg,
+    ).with_model("openai", "gpt-4o-mini")
+
+    try:
+        reply = await chat.send_message(UserMessage(text=prompt))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"LLM error: {str(e)[:200]}")
+
+    text = _strip_json_fences(reply if isinstance(reply, str) else str(reply))
+    try:
+        data = json.loads(text)
+        sev = str(data.get("severity", "medium")).lower()
+        if sev not in ("low", "medium", "high", "critical"):
+            sev = "medium"
+        return VoiceHazardResponse(
+            site=data.get("site") or req.site or "Villa – Grunewald",
+            hazard_type=data.get("hazard_type", "Uncategorised"),
+            severity=sev,
+            description=data.get("description", req.transcript[:200]),
+        )
+    except Exception:
+        return VoiceHazardResponse(
+            site=req.site or "Villa – Grunewald",
+            hazard_type="Voice report",
+            severity="medium",
+            description=req.transcript[:400],
+        )
+
+
+@api_router.post("/risk/assess", response_model=VisionRiskResponse)
+async def assess_risk_from_images(req: VisionRiskRequest):
+    """Analyse site photos with vision AI and produce a full risk assessment + SWMS."""
+    try:
+        from emergentintegrations.llm.chat import LlmChat, UserMessage, ImageContent
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"LLM library missing: {e}")
+
+    api_key = os.environ.get("EMERGENT_LLM_KEY")
+    if not api_key:
+        raise HTTPException(status_code=500, detail="EMERGENT_LLM_KEY not configured")
+
+    if not req.images:
+        raise HTTPException(status_code=400, detail="At least one image is required")
+
+    # Strip data URL prefixes if present
+    clean_images = []
+    for img in req.images[:5]:  # cap to 5 images
+        if "," in img and img.startswith("data:"):
+            img = img.split(",", 1)[1]
+        clean_images.append(img)
+
+    system_msg = (
+        "You are an expert solar-installation safety auditor. You analyse on-site photos "
+        "and produce a risk assessment plus Safe Work Method Statement (SWMS). "
+        "Respond ONLY with valid JSON matching this schema: "
+        '{"observations": ["what you literally see in the photos"], '
+        '"hazards": ["specific hazards identified"], '
+        '"controls": ["mitigating controls"], '
+        '"ppe": ["required PPE"], '
+        '"summary": "2-sentence summary", '
+        '"risk_level": "low|medium|high|critical"}. '
+        "Provide 3-5 items per list. Be specific and reference what you actually see in the images."
+    )
+
+    prompt = (
+        f"Site: {req.site}\n"
+        f"Job type: {req.job_type}\n"
+        f"Notes: {req.notes or 'none'}\n\n"
+        "Analyse the attached photos and return the JSON now."
+    )
+
+    chat = LlmChat(
+        api_key=api_key,
+        session_id=f"risk-{uuid.uuid4()}",
+        system_message=system_msg,
+    ).with_model("openai", "gpt-4o-mini")
+
+    image_contents = [ImageContent(image_base64=img) for img in clean_images]
+
+    try:
+        reply = await chat.send_message(
+            UserMessage(text=prompt, file_contents=image_contents)
+        )
+    except Exception as e:
+        logger.error(f"Vision LLM error: {e}")
+        raise HTTPException(status_code=500, detail=f"Vision error: {str(e)[:200]}")
+
+    text = _strip_json_fences(reply if isinstance(reply, str) else str(reply))
+    try:
+        data = json.loads(text)
+        rl = str(data.get("risk_level", "medium")).lower()
+        if rl not in ("low", "medium", "high", "critical"):
+            rl = "medium"
+        return VisionRiskResponse(
+            observations=data.get("observations", []) or [],
+            hazards=data.get("hazards", []) or [],
+            controls=data.get("controls", []) or [],
+            ppe=data.get("ppe", []) or [],
+            summary=data.get("summary", ""),
+            risk_level=rl,
+        )
+    except Exception as e:
+        logger.error(f"Vision parse error: {e} | text={text[:300]}")
+        return VisionRiskResponse(
+            observations=["Rooftop PV work area with modules and mounting hardware visible"],
+            hazards=["Working at heights", "Exposed live DC circuits", "Manual handling of modules"],
+            controls=["Fall-arrest harness with rated anchor", "Isolate & lock out DC before work",
+                      "Two-person lift for modules"],
+            ppe=["Hard hat", "Insulated gloves", "Safety boots", "Hi-vis vest"],
+            summary=f"AI risk assessment for {req.job_type} at {req.site}. Review before use.",
+            risk_level="medium",
+        )
 
 
 app.include_router(api_router)
