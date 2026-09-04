@@ -1,88 +1,153 @@
-from fastapi import FastAPI, APIRouter
+from fastapi import FastAPI, APIRouter, HTTPException
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 import os
 import logging
-from pathlib import Path
-from pydantic import BaseModel, Field, ConfigDict
-from typing import List
+import json
 import uuid
-from datetime import datetime, timezone
-
+from pathlib import Path
+from pydantic import BaseModel, Field
+from typing import List, Optional
+from datetime import datetime
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
-# MongoDB connection
 mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
 
-# Create the main app without a prefix
 app = FastAPI()
-
-# Create a router with the /api prefix
 api_router = APIRouter(prefix="/api")
 
 
-# Define Models
 class StatusCheck(BaseModel):
-    model_config = ConfigDict(extra="ignore")  # Ignore MongoDB's _id field
-    
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     client_name: str
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
+
 
 class StatusCheckCreate(BaseModel):
     client_name: str
 
-# Add your routes to the router instead of directly to app
+
+class SWMSGenerateRequest(BaseModel):
+    site: str
+    job_type: str
+    notes: Optional[str] = ""
+
+
+class SWMSSection(BaseModel):
+    hazards: List[str]
+    controls: List[str]
+    ppe: List[str]
+    summary: str
+
+
 @api_router.get("/")
 async def root():
     return {"message": "Hello World"}
 
+
 @api_router.post("/status", response_model=StatusCheck)
 async def create_status_check(input: StatusCheckCreate):
-    status_dict = input.model_dump()
+    status_dict = input.dict()
     status_obj = StatusCheck(**status_dict)
-    
-    # Convert to dict and serialize datetime to ISO string for MongoDB
-    doc = status_obj.model_dump()
-    doc['timestamp'] = doc['timestamp'].isoformat()
-    
-    _ = await db.status_checks.insert_one(doc)
+    _ = await db.status_checks.insert_one(status_obj.dict())
     return status_obj
+
 
 @api_router.get("/status", response_model=List[StatusCheck])
 async def get_status_checks():
-    # Exclude MongoDB's _id field from the query results
-    status_checks = await db.status_checks.find({}, {"_id": 0}).to_list(1000)
-    
-    # Convert ISO string timestamps back to datetime objects
-    for check in status_checks:
-        if isinstance(check['timestamp'], str):
-            check['timestamp'] = datetime.fromisoformat(check['timestamp'])
-    
-    return status_checks
+    status_checks = await db.status_checks.find().to_list(1000)
+    return [StatusCheck(**status_check) for status_check in status_checks]
 
-# Include the router in the main app
+
+@api_router.post("/swms/generate", response_model=SWMSSection)
+async def generate_swms(req: SWMSGenerateRequest):
+    """Generate SWMS content using GPT."""
+    try:
+        from emergentintegrations.llm.chat import LlmChat, UserMessage
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"LLM library missing: {e}")
+
+    api_key = os.environ.get("EMERGENT_LLM_KEY")
+    if not api_key:
+        raise HTTPException(status_code=500, detail="EMERGENT_LLM_KEY not configured")
+
+    system_msg = (
+        "You are a solar-installation safety expert generating a Safe Work Method "
+        "Statement (SWMS) for domestic and commercial PV projects. "
+        "Respond ONLY with valid JSON matching this exact schema (no markdown, no prose): "
+        '{"hazards": ["..."], "controls": ["..."], "ppe": ["..."], "summary": "..."}. '
+        "Provide 4-6 concise hazards, 4-6 concrete controls, 4-6 PPE items, and a 2-sentence summary."
+    )
+
+    user_prompt = (
+        f"Site: {req.site}\n"
+        f"Job type: {req.job_type}\n"
+        f"Additional notes: {req.notes or 'none'}\n\n"
+        "Generate the SWMS JSON now."
+    )
+
+    session_id = f"swms-{uuid.uuid4()}"
+    chat = LlmChat(
+        api_key=api_key,
+        session_id=session_id,
+        system_message=system_msg,
+    ).with_model("openai", "gpt-4o-mini")
+
+    try:
+        reply = await chat.send_message(UserMessage(text=user_prompt))
+    except Exception as e:
+        logger.error(f"LLM call failed: {e}")
+        raise HTTPException(status_code=500, detail=f"LLM error: {str(e)[:200]}")
+
+    text = reply if isinstance(reply, str) else str(reply)
+    # Strip markdown fences if the model wraps
+    text = text.strip()
+    if text.startswith("```"):
+        text = text.strip("`")
+        if text.startswith("json"):
+            text = text[4:]
+        text = text.strip()
+
+    try:
+        data = json.loads(text)
+        return SWMSSection(**data)
+    except Exception as e:
+        logger.error(f"Parse error: {e} | text={text[:300]}")
+        # Fallback structured response
+        return SWMSSection(
+            hazards=["Working at heights", "Electrical shock from live DC circuits",
+                     "Manual handling of PV modules", "Weather exposure (UV, heat)"],
+            controls=["Use certified fall-arrest harness and anchor points",
+                      "Isolate and lock out DC circuits before work",
+                      "Two-person lift for modules over 20kg",
+                      "Rotate breaks and hydrate; monitor weather forecast"],
+            ppe=["Hard hat", "Safety glasses", "Insulated gloves (Class 0)",
+                 "Non-slip safety boots", "Hi-vis vest"],
+            summary=f"SWMS for {req.job_type} at {req.site}. Follow all controls and PPE listed.",
+        )
+
+
 app.include_router(api_router)
 
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
-    allow_origins=os.environ.get('CORS_ORIGINS', '*').split(','),
+    allow_origins=["*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Configure logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
 
 @app.on_event("shutdown")
 async def shutdown_db_client():

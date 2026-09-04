@@ -1,7 +1,7 @@
-import React, { useState } from "react";
-import { ShieldAlert, Plus, AlertTriangle, CheckCircle2, Clock, Eye } from "lucide-react";
+import React, { useState, useRef } from "react";
+import { ShieldAlert, Plus, AlertTriangle, CheckCircle2, Clock, Eye, Camera, ImagePlus, X, Trash2 } from "lucide-react";
 import DashboardLayout from "./DashboardLayout";
-import { hazards } from "../../mock";
+import { hazards as initialHazards } from "../../mock";
 import { useToast } from "../../hooks/use-toast";
 
 const severityStyles = {
@@ -21,6 +21,13 @@ const statusMeta = {
 const HazardsPage = () => {
   const [showForm, setShowForm] = useState(false);
   const [severity, setSeverity] = useState("medium");
+  const [site, setSite] = useState("Villa – Grunewald");
+  const [type, setType] = useState("");
+  const [description, setDescription] = useState("");
+  const [photos, setPhotos] = useState([]);
+  const [hazards, setHazards] = useState(initialHazards);
+  const [preview, setPreview] = useState(null);
+  const fileRef = useRef(null);
   const { toast } = useToast();
 
   const counts = {
@@ -30,13 +37,61 @@ const HazardsPage = () => {
     closed: hazards.filter((h) => h.status === "closed").length,
   };
 
+  const openModal = () => {
+    setShowForm(true);
+    setSeverity("medium");
+    setType("");
+    setDescription("");
+    setPhotos([]);
+  };
+
+  const handleFiles = (files) => {
+    const list = Array.from(files || []);
+    list.forEach((file) => {
+      if (!file.type.startsWith("image/")) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setPhotos((prev) => [
+          ...prev,
+          { id: `${Date.now()}-${Math.random()}`, name: file.name, dataUrl: e.target.result },
+        ]);
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const removePhoto = (id) => {
+    setPhotos((prev) => prev.filter((p) => p.id !== id));
+  };
+
+  const submit = (e) => {
+    e.preventDefault();
+    const newHazard = {
+      id: `H-${2402 + hazards.length - initialHazards.length}`,
+      site,
+      type: type || "Uncategorised",
+      severity,
+      status: "open",
+      reportedBy: "M. Weber",
+      date: "just now",
+      photos,
+      description,
+    };
+    setHazards([newHazard, ...hazards]);
+    setShowForm(false);
+    toast({
+      title: "Hazard reported",
+      description: `${photos.length} photo${photos.length === 1 ? "" : "s"} attached. Supervisors notified.`,
+    });
+  };
+
   return (
     <DashboardLayout
       title="Hazard Reporting"
       subtitle="Real-time hazard capture from the field"
       action={
         <button
-          onClick={() => setShowForm(true)}
+          onClick={openModal}
           className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-[13px] font-medium transition-colors"
         >
           <Plus className="w-[14px] h-[14px]" />
@@ -73,6 +128,7 @@ const HazardsPage = () => {
         {hazards.map((h) => {
           const meta = statusMeta[h.status];
           const StatusIcon = meta.icon;
+          const hasPhotos = h.photos && h.photos.length > 0;
           return (
             <div
               key={h.id}
@@ -88,10 +144,29 @@ const HazardsPage = () => {
                     {h.severity}
                   </span>
                   <span className="text-[13px] font-medium text-slate-900">{h.type}</span>
+                  {hasPhotos && (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-medium text-indigo-700 bg-indigo-50 border border-indigo-200 px-1.5 py-0.5 rounded">
+                      <Camera className="w-3 h-3" />
+                      {h.photos.length}
+                    </span>
+                  )}
                 </div>
                 <div className="text-[12px] text-slate-500">
                   {h.site} · Reported by {h.reportedBy} · {h.date}
                 </div>
+                {hasPhotos && (
+                  <div className="flex gap-2 mt-2">
+                    {h.photos.slice(0, 4).map((p) => (
+                      <button
+                        key={p.id}
+                        onClick={() => setPreview(p.dataUrl)}
+                        className="w-14 h-14 rounded-lg overflow-hidden border border-slate-200 hover:border-slate-400 transition-colors"
+                      >
+                        <img src={p.dataUrl} alt={p.name} className="w-full h-full object-cover" />
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
               <span className={`inline-flex items-center gap-1 text-[11px] font-medium px-2 py-1 rounded-full ${meta.cls} flex-shrink-0`}>
                 <StatusIcon className="w-3 h-3" />
@@ -104,37 +179,44 @@ const HazardsPage = () => {
 
       {/* Report form modal */}
       {showForm && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center px-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-[540px] p-6">
-            <div className="flex items-center gap-3 mb-5">
-              <div className="w-10 h-10 rounded-lg bg-rose-100 flex items-center justify-center">
-                <ShieldAlert className="w-[18px] h-[18px] text-rose-600" />
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center px-4 py-6 overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-[560px] max-h-[92vh] overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-rose-100 flex items-center justify-center">
+                  <ShieldAlert className="w-[18px] h-[18px] text-rose-600" />
+                </div>
+                <div>
+                  <h3 className="text-[16px] font-semibold text-slate-900">Report a Hazard</h3>
+                  <p className="text-[12px] text-slate-500">Capture on-site risks with photos</p>
+                </div>
               </div>
-              <div>
-                <h3 className="text-[16px] font-semibold text-slate-900">Report a Hazard</h3>
-                <p className="text-[12px] text-slate-500">Capture on-site risks immediately</p>
-              </div>
+              <button onClick={() => setShowForm(false)} className="p-1 rounded hover:bg-slate-100 text-slate-500">
+                <X className="w-4 h-4" />
+              </button>
             </div>
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                setShowForm(false);
-                toast({ title: "Hazard reported", description: "Supervisors have been notified." });
-              }}
-              className="space-y-3"
-            >
+
+            <form onSubmit={submit} className="flex-1 overflow-y-auto px-6 py-5 space-y-3">
               <div>
                 <label className="text-[12px] font-medium text-slate-700 mb-1 block">Site</label>
-                <select className="w-full h-10 px-3 border border-slate-200 rounded-lg text-[13px] bg-white outline-none focus:border-slate-400">
+                <select
+                  value={site}
+                  onChange={(e) => setSite(e.target.value)}
+                  className="w-full h-10 px-3 border border-slate-200 rounded-lg text-[13px] bg-white outline-none focus:border-slate-400"
+                >
                   <option>Villa – Grunewald</option>
                   <option>Warehouse Array – Hamburg Hafen</option>
                   <option>Commercial Roof – Siemensstadt</option>
+                  <option>Residential – Prenzlauer Berg</option>
+                  <option>School Rooftop – Munich Nord</option>
                 </select>
               </div>
               <div>
                 <label className="text-[12px] font-medium text-slate-700 mb-1 block">Hazard type</label>
                 <input
                   type="text"
+                  value={type}
+                  onChange={(e) => setType(e.target.value)}
                   placeholder="e.g. Exposed live conductor"
                   className="w-full h-10 px-3 border border-slate-200 rounded-lg text-[13px] outline-none focus:border-slate-400"
                 />
@@ -161,28 +243,103 @@ const HazardsPage = () => {
               <div>
                 <label className="text-[12px] font-medium text-slate-700 mb-1 block">Description</label>
                 <textarea
-                  rows={3}
+                  rows={2}
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-[13px] resize-none outline-none focus:border-slate-400"
                   placeholder="What happened, immediate controls in place…"
                 />
               </div>
-              <div className="flex justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowForm(false)}
-                  className="h-9 px-4 rounded-lg text-[13px] font-medium text-slate-700 hover:bg-slate-100 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="h-9 px-4 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-[13px] font-medium transition-colors"
-                >
-                  Submit Report
-                </button>
+
+              {/* Photo uploader */}
+              <div>
+                <label className="text-[12px] font-medium text-slate-700 mb-1 block">
+                  On-site photos <span className="text-slate-400">({photos.length} attached)</span>
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => fileRef.current?.click()}
+                    className="h-24 rounded-lg border-2 border-dashed border-slate-300 hover:border-slate-400 hover:bg-slate-50 transition-colors flex flex-col items-center justify-center gap-1 text-slate-500"
+                  >
+                    <ImagePlus className="w-5 h-5" />
+                    <span className="text-[11px] font-medium">Choose files</span>
+                  </button>
+                  <label
+                    className="h-24 rounded-lg border-2 border-dashed border-slate-300 hover:border-slate-400 hover:bg-slate-50 transition-colors flex flex-col items-center justify-center gap-1 text-slate-500 cursor-pointer"
+                  >
+                    <Camera className="w-5 h-5" />
+                    <span className="text-[11px] font-medium">Take photo</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      className="hidden"
+                      onChange={(e) => handleFiles(e.target.files)}
+                    />
+                  </label>
+                </div>
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => handleFiles(e.target.files)}
+                />
+
+                {photos.length > 0 && (
+                  <div className="grid grid-cols-4 gap-2 mt-3">
+                    {photos.map((p) => (
+                      <div key={p.id} className="relative group aspect-square rounded-lg overflow-hidden border border-slate-200">
+                        <img src={p.dataUrl} alt={p.name} className="w-full h-full object-cover" />
+                        <button
+                          type="button"
+                          onClick={() => removePhoto(p.id)}
+                          className="absolute top-1 right-1 w-6 h-6 rounded-full bg-white/90 text-rose-600 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </form>
+
+            <div className="flex justify-end gap-2 px-6 py-3 border-t border-slate-100 bg-slate-50">
+              <button
+                type="button"
+                onClick={() => setShowForm(false)}
+                className="h-9 px-4 rounded-lg text-[13px] font-medium text-slate-700 hover:bg-white transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={submit}
+                className="h-9 px-4 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-[13px] font-medium transition-colors"
+              >
+                Submit Report
+              </button>
+            </div>
           </div>
+        </div>
+      )}
+
+      {/* Photo preview lightbox */}
+      {preview && (
+        <div
+          onClick={() => setPreview(null)}
+          className="fixed inset-0 bg-slate-900/85 backdrop-blur z-[60] flex items-center justify-center px-6 py-6 cursor-zoom-out"
+        >
+          <img src={preview} alt="preview" className="max-w-full max-h-full rounded-xl shadow-2xl" />
+          <button
+            className="absolute top-6 right-6 w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center"
+            onClick={() => setPreview(null)}
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
       )}
     </DashboardLayout>

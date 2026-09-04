@@ -1,8 +1,11 @@
 import React, { useState } from "react";
-import { FileText, Plus, Search, Filter, Download, CheckCircle2, Clock, FileEdit } from "lucide-react";
+import { FileText, Plus, Search, Download, CheckCircle2, Clock, FileEdit, Sparkles, HardHat, ShieldAlert, ListChecks, X } from "lucide-react";
+import axios from "axios";
 import DashboardLayout from "./DashboardLayout";
 import { swmsList } from "../../mock";
 import { useToast } from "../../hooks/use-toast";
+
+const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 const statusMeta = {
   approved: { icon: CheckCircle2, label: "Approved", cls: "bg-emerald-50 text-emerald-700 border-emerald-200" },
@@ -10,10 +13,32 @@ const statusMeta = {
   draft: { icon: FileEdit, label: "Draft", cls: "bg-slate-100 text-slate-700 border-slate-200" },
 };
 
+const siteOptions = [
+  "Villa – Grunewald",
+  "Commercial Roof – Siemensstadt",
+  "Warehouse Array – Hamburg Hafen",
+  "Residential – Prenzlauer Berg",
+  "School Rooftop – Munich Nord",
+];
+
+const jobOptions = [
+  "Rooftop PV Installation – 8kW Domestic",
+  "Commercial Array Mounting – 150kW",
+  "Battery Storage Wiring – LFP 12.4kWh",
+  "Warehouse Ballasted Array – 400kW",
+  "Inverter Commissioning – Fronius Symo",
+];
+
 const SWMSPage = () => {
   const [filter, setFilter] = useState("all");
   const [query, setQuery] = useState("");
   const [showModal, setShowModal] = useState(false);
+  const [site, setSite] = useState(siteOptions[0]);
+  const [jobType, setJobType] = useState(jobOptions[0]);
+  const [notes, setNotes] = useState("");
+  const [generating, setGenerating] = useState(false);
+  const [aiResult, setAiResult] = useState(null);
+  const [aiError, setAiError] = useState("");
   const { toast } = useToast();
 
   const filtered = swmsList
@@ -27,17 +52,58 @@ const SWMSPage = () => {
     draft: swmsList.filter((s) => s.status === "draft").length,
   };
 
+  const openModal = () => {
+    setShowModal(true);
+    setAiResult(null);
+    setAiError("");
+    setNotes("");
+  };
+
+  const closeModal = () => {
+    setShowModal(false);
+    setAiResult(null);
+    setGenerating(false);
+    setAiError("");
+  };
+
+  const handleGenerate = async (e) => {
+    e.preventDefault();
+    setGenerating(true);
+    setAiError("");
+    setAiResult(null);
+    try {
+      const res = await axios.post(`${API}/swms/generate`, {
+        site,
+        job_type: jobType,
+        notes,
+      });
+      setAiResult(res.data);
+      toast({ title: "SWMS drafted", description: "AI generated hazards, controls & PPE." });
+    } catch (err) {
+      const detail = err.response?.data?.detail || err.message;
+      setAiError(detail);
+      toast({ title: "Generation failed", description: detail, variant: "destructive" });
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const saveDraft = () => {
+    toast({ title: "Draft saved", description: "SWMS saved to your library." });
+    closeModal();
+  };
+
   return (
     <DashboardLayout
       title="Safe Work Method Statements"
-      subtitle="Automated SWMS generation & approval workflow"
+      subtitle="AI-assisted SWMS generation & approval workflow"
       action={
         <button
-          onClick={() => setShowModal(true)}
+          onClick={openModal}
           className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-[13px] font-medium transition-colors"
         >
-          <Plus className="w-[14px] h-[14px]" />
-          Generate SWMS
+          <Sparkles className="w-[14px] h-[14px]" />
+          Generate with AI
         </button>
       }
     >
@@ -121,68 +187,155 @@ const SWMSPage = () => {
         })}
       </div>
 
-      {/* Modal */}
+      {/* AI Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center px-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-[540px] p-6">
-            <div className="flex items-center gap-3 mb-5">
-              <div className="w-10 h-10 rounded-lg bg-indigo-100 flex items-center justify-center">
-                <FileText className="w-[18px] h-[18px] text-indigo-600" />
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center px-4 py-6 overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-[640px] max-h-[92vh] overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
+                  <Sparkles className="w-[18px] h-[18px] text-white" />
+                </div>
+                <div>
+                  <h3 className="text-[16px] font-semibold text-slate-900">AI-Generated SWMS</h3>
+                  <p className="text-[12px] text-slate-500">Auto-fill hazards, controls & PPE using GPT</p>
+                </div>
               </div>
-              <div>
-                <h3 className="text-[16px] font-semibold text-slate-900">Generate SWMS</h3>
-                <p className="text-[12px] text-slate-500">AI-assisted based on job type & site risk</p>
-              </div>
+              <button onClick={closeModal} className="p-1 rounded hover:bg-slate-100 text-slate-500">
+                <X className="w-4 h-4" />
+              </button>
             </div>
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                setShowModal(false);
-                toast({ title: "SWMS generated", description: "Draft created and ready for review." });
-              }}
-              className="space-y-3"
-            >
-              <div>
-                <label className="text-[12px] font-medium text-slate-700 mb-1 block">Site</label>
-                <select className="w-full h-10 px-3 border border-slate-200 rounded-lg text-[13px] bg-white outline-none focus:border-slate-400">
-                  <option>Villa – Grunewald</option>
-                  <option>Commercial Roof – Siemensstadt</option>
-                  <option>Warehouse Array – Hamburg Hafen</option>
-                </select>
-              </div>
-              <div>
-                <label className="text-[12px] font-medium text-slate-700 mb-1 block">Job Type</label>
-                <select className="w-full h-10 px-3 border border-slate-200 rounded-lg text-[13px] bg-white outline-none focus:border-slate-400">
-                  <option>Rooftop PV Installation</option>
-                  <option>Battery Storage Wiring</option>
-                  <option>Inverter Commissioning</option>
-                  <option>Warehouse Ballasted Array</option>
-                </select>
-              </div>
-              <div>
-                <label className="text-[12px] font-medium text-slate-700 mb-1 block">Notes</label>
-                <textarea
-                  rows={3}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-[13px] resize-none outline-none focus:border-slate-400"
-                  placeholder="Specific hazards, PPE requirements…"
-                />
-              </div>
-              <div className="flex justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowModal(false)}
-                  className="h-9 px-4 rounded-lg text-[13px] font-medium text-slate-700 hover:bg-slate-100 transition-colors"
-                >
-                  Cancel
-                </button>
+
+            <div className="flex-1 overflow-y-auto px-6 py-5">
+              <form onSubmit={handleGenerate} className="space-y-3">
+                <div>
+                  <label className="text-[12px] font-medium text-slate-700 mb-1 block">Site</label>
+                  <select
+                    value={site}
+                    onChange={(e) => setSite(e.target.value)}
+                    className="w-full h-10 px-3 border border-slate-200 rounded-lg text-[13px] bg-white outline-none focus:border-slate-400"
+                  >
+                    {siteOptions.map((o) => <option key={o}>{o}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[12px] font-medium text-slate-700 mb-1 block">Job Type</label>
+                  <select
+                    value={jobType}
+                    onChange={(e) => setJobType(e.target.value)}
+                    className="w-full h-10 px-3 border border-slate-200 rounded-lg text-[13px] bg-white outline-none focus:border-slate-400"
+                  >
+                    {jobOptions.map((o) => <option key={o}>{o}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[12px] font-medium text-slate-700 mb-1 block">
+                    Site-specific notes <span className="text-slate-400">(optional)</span>
+                  </label>
+                  <textarea
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    rows={2}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-[13px] resize-none outline-none focus:border-slate-400"
+                    placeholder="e.g. steep pitch roof, adjacent live overhead line…"
+                  />
+                </div>
                 <button
                   type="submit"
-                  className="h-9 px-4 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-[13px] font-medium transition-colors"
+                  disabled={generating}
+                  className="w-full h-10 rounded-lg bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white text-[13px] font-medium transition-opacity disabled:opacity-70 inline-flex items-center justify-center gap-2"
                 >
-                  Generate
+                  {generating ? (
+                    <>
+                      <div className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                      Generating…
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-[14px] h-[14px]" />
+                      Generate with GPT
+                    </>
+                  )}
                 </button>
-              </div>
-            </form>
+              </form>
+
+              {aiError && (
+                <div className="mt-4 p-3 rounded-lg bg-rose-50 border border-rose-200 text-[12px] text-rose-700">
+                  {aiError}
+                </div>
+              )}
+
+              {aiResult && (
+                <div className="mt-5 space-y-4">
+                  <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
+                    <div className="text-[11px] font-semibold uppercase text-slate-500 mb-1">Summary</div>
+                    <p className="text-[12px] text-slate-700 leading-relaxed">{aiResult.summary}</p>
+                  </div>
+
+                  <div>
+                    <div className="text-[12px] font-semibold text-slate-900 mb-2 flex items-center gap-1.5">
+                      <ShieldAlert className="w-[14px] h-[14px] text-rose-600" />
+                      Identified Hazards
+                    </div>
+                    <ul className="space-y-1.5">
+                      {aiResult.hazards?.map((h, i) => (
+                        <li key={i} className="text-[12px] text-slate-700 flex gap-2">
+                          <span className="text-rose-500">•</span>
+                          <span>{h}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  <div>
+                    <div className="text-[12px] font-semibold text-slate-900 mb-2 flex items-center gap-1.5">
+                      <ListChecks className="w-[14px] h-[14px] text-emerald-600" />
+                      Control Measures
+                    </div>
+                    <ul className="space-y-1.5">
+                      {aiResult.controls?.map((c, i) => (
+                        <li key={i} className="text-[12px] text-slate-700 flex gap-2">
+                          <span className="text-emerald-500">✓</span>
+                          <span>{c}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  <div>
+                    <div className="text-[12px] font-semibold text-slate-900 mb-2 flex items-center gap-1.5">
+                      <HardHat className="w-[14px] h-[14px] text-amber-600" />
+                      Required PPE
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {aiResult.ppe?.map((p, i) => (
+                        <span key={i} className="text-[11px] px-2.5 py-1 rounded-full bg-amber-50 text-amber-800 border border-amber-200">
+                          {p}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-2 px-6 py-3 border-t border-slate-100 bg-slate-50">
+              <button
+                type="button"
+                onClick={closeModal}
+                className="h-9 px-4 rounded-lg text-[13px] font-medium text-slate-700 hover:bg-white transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={saveDraft}
+                disabled={!aiResult}
+                className="h-9 px-4 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-[13px] font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Save as Draft
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -14,11 +14,11 @@ export const kpiStats = [
 ];
 
 export const activeSites = [
-  { id: "s1", name: "Residential – Prenzlauer Berg", team: 4, progress: 78, risk: "low", type: "Domestic", city: "Berlin" },
-  { id: "s2", name: "Commercial Roof – Siemensstadt", team: 8, progress: 45, risk: "medium", type: "Commercial", city: "Berlin" },
-  { id: "s3", name: "Warehouse Array – Hamburg Hafen", team: 6, progress: 62, risk: "high", type: "Commercial", city: "Hamburg" },
-  { id: "s4", name: "Villa – Grunewald", team: 3, progress: 91, risk: "low", type: "Domestic", city: "Berlin" },
-  { id: "s5", name: "School Rooftop – Munich Nord", team: 5, progress: 34, risk: "medium", type: "Commercial", city: "Munich" },
+  { id: "s1", name: "Residential – Prenzlauer Berg", team: 4, progress: 78, risk: "low", type: "Domestic", city: "Berlin", lat: 52.5401, lng: 13.4247 },
+  { id: "s2", name: "Commercial Roof – Siemensstadt", team: 8, progress: 45, risk: "medium", type: "Commercial", city: "Berlin", lat: 52.5411, lng: 13.2617 },
+  { id: "s3", name: "Warehouse Array – Hamburg Hafen", team: 6, progress: 62, risk: "high", type: "Commercial", city: "Hamburg", lat: 53.5411, lng: 9.9770 },
+  { id: "s4", name: "Villa – Grunewald", team: 3, progress: 91, risk: "low", type: "Domestic", city: "Berlin", lat: 52.4839, lng: 13.2620 },
+  { id: "s5", name: "School Rooftop – Munich Nord", team: 5, progress: 34, risk: "medium", type: "Commercial", city: "Munich", lat: 48.1937, lng: 11.5678 },
 ];
 
 export const energyProduction = [

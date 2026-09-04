@@ -6,6 +6,7 @@ import {
   FileText,
   Lock,
   ClipboardCheck,
+  Map,
   Sun,
   Bell,
   Search,
@@ -16,6 +17,7 @@ import { currentUser } from "../../mock";
 
 const navItems = [
   { to: "/dashboard", label: "Overview", icon: LayoutDashboard, end: true },
+  { to: "/dashboard/map", label: "Site Map", icon: Map },
   { to: "/dashboard/swms", label: "SWMS", icon: FileText },
   { to: "/dashboard/hazards", label: "Hazards", icon: ShieldAlert },
   { to: "/dashboard/loto", label: "Lockout / Tagout", icon: Lock },
