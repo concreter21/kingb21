@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Mail, Lock } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { GoogleIcon, MicrosoftIcon, FacebookIcon, AppleIcon } from "./SocialIcons";
 import { useToast } from "../hooks/use-toast";
 import { APP_NAME, APP_SUBTITLE } from "../mock";
@@ -23,12 +24,14 @@ const LoginPage = () => {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const handleSocial = (providerId) => {
     toast({
       title: "Redirecting…",
       description: `Signing in with ${providerId.charAt(0).toUpperCase() + providerId.slice(1)}`,
     });
+    setTimeout(() => navigate("/dashboard"), 500);
   };
 
   const handleSubmit = (e) => {
@@ -48,7 +51,8 @@ const LoginPage = () => {
         title: "Welcome back",
         description: "Signed in successfully (demo).",
       });
-    }, 900);
+      navigate("/dashboard");
+    }, 700);
   };
 
   return (
