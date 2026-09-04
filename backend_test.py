@@ -707,6 +707,148 @@ def test_risk_assess_endpoint():
         print_error(f"Request failed: {str(e)}")
         return False
 
+def test_risk_watch_endpoint():
+    """Test POST /api/risk/watch endpoint for continuous risk monitoring"""
+    print_test_header("POST /api/risk/watch - Continuous Risk Monitoring")
+    
+    try:
+        # Generate a small 32x32 JPEG image as per review request
+        img = Image.new("RGB", (32, 32), (100, 100, 100))
+        buf = io.BytesIO()
+        img.save(buf, format="JPEG")
+        b64 = base64.b64encode(buf.getvalue()).decode()
+        
+        # Test data from review request
+        test_data = {
+            "image": b64,
+            "site": "Warehouse Array – Hamburg Hafen",
+            "job_type": "Warehouse Ballasted Array",
+            "recent_alerts": ["Worker without harness at edge"]
+        }
+        
+        print(f"Request payload:")
+        print(f"  site: {test_data['site']}")
+        print(f"  job_type: {test_data['job_type']}")
+        print(f"  recent_alerts: {test_data['recent_alerts']}")
+        print(f"  image: <base64 JPEG image, {len(b64)} chars>")
+        
+        # Track response time
+        start_time = time.time()
+        
+        response = requests.post(
+            f"{BACKEND_URL}/risk/watch",
+            json=test_data,
+            timeout=35
+        )
+        
+        end_time = time.time()
+        response_time = end_time - start_time
+        
+        print(f"\nStatus Code: {response.status_code}")
+        print(f"Response Time: {response_time:.2f} seconds")
+        
+        # Check response time (requirement: within 30s)
+        if response_time < 30:
+            print_success(f"Response time ({response_time:.2f}s) is under 30 seconds")
+        else:
+            print_warning(f"Response time ({response_time:.2f}s) exceeds 30 seconds")
+        
+        # Check status code
+        if response.status_code == 200:
+            print_success("Risk watch endpoint returned 200 status")
+        else:
+            print_error(f"Expected 200, got {response.status_code}")
+            print(f"Response body: {response.text}")
+            return False
+        
+        # Parse and validate response
+        try:
+            data = response.json()
+            print(f"\nResponse structure:")
+            print(json.dumps(data, indent=2))
+            
+            # Check required fields
+            required_fields = ["has_hazard", "severity", "alert", "recommendation", "timestamp"]
+            all_fields_present = True
+            
+            for field in required_fields:
+                if field in data:
+                    print_success(f"Response contains '{field}' field")
+                else:
+                    print_error(f"Response missing '{field}' field")
+                    all_fields_present = False
+            
+            if not all_fields_present:
+                return False
+            
+            # Validate has_hazard is a boolean
+            if isinstance(data["has_hazard"], bool):
+                print_success(f"'has_hazard' is a boolean: {data['has_hazard']}")
+            else:
+                print_error(f"'has_hazard' must be a boolean, got: {type(data['has_hazard'])}")
+                return False
+            
+            # Validate severity is one of the allowed values
+            allowed_severities = ["none", "low", "medium", "high", "critical"]
+            if data["severity"] in allowed_severities:
+                print_success(f"'severity' is valid: {data['severity']}")
+            else:
+                print_error(f"'severity' must be one of {allowed_severities}, got: {data['severity']}")
+                return False
+            
+            # Validate alert is a string
+            if isinstance(data["alert"], str):
+                print_success(f"'alert' is a string ({len(data['alert'])} characters)")
+                if len(data["alert"]) > 0:
+                    print(f"  Alert: {data['alert']}")
+            else:
+                print_error(f"'alert' must be a string, got: {type(data['alert'])}")
+                return False
+            
+            # Validate recommendation is a string
+            if isinstance(data["recommendation"], str):
+                print_success(f"'recommendation' is a string ({len(data['recommendation'])} characters)")
+                if len(data["recommendation"]) > 0:
+                    print(f"  Recommendation: {data['recommendation']}")
+            else:
+                print_error(f"'recommendation' must be a string, got: {type(data['recommendation'])}")
+                return False
+            
+            # Validate timestamp is an ISO string
+            if isinstance(data["timestamp"], str):
+                try:
+                    # Try to parse as ISO datetime
+                    from datetime import datetime
+                    datetime.fromisoformat(data["timestamp"].replace('Z', '+00:00'))
+                    print_success(f"'timestamp' is a valid ISO string: {data['timestamp']}")
+                except ValueError:
+                    print_error(f"'timestamp' is not a valid ISO datetime string: {data['timestamp']}")
+                    return False
+            else:
+                print_error(f"'timestamp' must be a string, got: {type(data['timestamp'])}")
+                return False
+            
+            # Validate business logic: if severity is "none", has_hazard should be false
+            if data["severity"] == "none" and data["has_hazard"] == True:
+                print_error("Business logic error: severity is 'none' but has_hazard is True")
+                return False
+            elif data["severity"] == "none" and data["has_hazard"] == False:
+                print_success("Business logic correct: severity is 'none' and has_hazard is False")
+            
+            return True
+            
+        except json.JSONDecodeError as e:
+            print_error(f"Failed to parse JSON response: {str(e)}")
+            print(f"Response text: {response.text}")
+            return False
+            
+    except requests.Timeout:
+        print_error("Request timed out (>35 seconds)")
+        return False
+    except Exception as e:
+        print_error(f"Request failed: {str(e)}")
+        return False
+
 def run_all_tests():
     """Run all backend tests and report results"""
     print(f"\n{Colors.BLUE}{'='*80}{Colors.END}")
@@ -728,11 +870,14 @@ def run_all_tests():
     # Test 4: Agent chat endpoint
     results["POST /api/agent/chat"] = test_agent_chat_endpoint()
     
-    # Test 5: Voice hazard endpoint (NEW)
+    # Test 5: Voice hazard endpoint
     results["POST /api/hazards/from-voice"] = test_hazards_from_voice_endpoint()
     
-    # Test 6: Risk assessment endpoint (NEW)
+    # Test 6: Risk assessment endpoint
     results["POST /api/risk/assess"] = test_risk_assess_endpoint()
+    
+    # Test 7: Risk watch endpoint (NEW)
+    results["POST /api/risk/watch"] = test_risk_watch_endpoint()
     
     # Summary
     print(f"\n{Colors.BLUE}{'='*80}{Colors.END}")

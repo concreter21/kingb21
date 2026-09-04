@@ -194,6 +194,21 @@ backend:
       - working: true
         agent: "testing"
         comment: "Tested successfully with images=[8x8 red PNG base64], site='Villa – Grunewald', job_type='Rooftop PV Installation – 8kW Domestic', notes='Steep tile roof'. Returns 200 status in 2.18 seconds. Response contains all required fields (observations, hazards, controls, ppe, summary, risk_level). All list fields are non-empty: observations (5 items), hazards (5 items), controls (5 items), ppe (5 items). Summary is non-empty (233 chars) and contextually relevant. Risk level is valid ('high'). AI vision integration with emergentintegrations library and GPT-4o-mini is working correctly. Image base64 handling and JSON parsing working as expected."
+      - working: true
+        agent: "testing"
+        comment: "Re-tested successfully. Returns 200 status in 2.10s. All required fields present with 5 items each in all lists. Summary is 220 chars and contextually relevant. Risk level is valid ('high'). AI vision integration continues to work correctly."
+
+  - task: "POST /api/risk/watch - Continuous Risk Monitoring"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "Tested successfully with image=[32x32 JPEG base64], site='Warehouse Array – Hamburg Hafen', job_type='Warehouse Ballasted Array', recent_alerts=['Worker without harness at edge']. Returns 200 status in 0.99 seconds (well under 30s requirement). Response contains all required fields: has_hazard (bool: false), severity (valid: 'none'), alert (string: empty), recommendation (string: empty), timestamp (valid ISO string: '2026-09-04T23:56:21.629491'). Business logic correct: when severity is 'none', has_hazard is false. AI vision integration with emergentintegrations library and GPT-4o-mini is working correctly. Image base64 handling and JSON parsing working as expected. Endpoint is functioning correctly for continuous risk monitoring use case."
 
 frontend:
   # No frontend tasks to test as per instructions
@@ -201,11 +216,12 @@ frontend:
 metadata:
   created_by: "testing_agent"
   version: "1.0"
-  test_sequence: 3
+  test_sequence: 4
   run_ui: false
 
 test_plan:
   current_focus:
+    - "POST /api/risk/watch - Continuous Risk Monitoring"
     - "POST /api/hazards/from-voice - Voice Hazard Structuring"
     - "POST /api/risk/assess - Vision Risk Assessment"
     - "POST /api/agent/chat - AI Agent Chat"
@@ -223,3 +239,5 @@ agent_communication:
     message: "Completed testing of new POST /api/agent/chat endpoint. Tested both scenarios: (1) without history and (2) with conversation history. Both tests passed successfully. Response times are excellent (3.53s and 5.09s, well under 30s requirement). Responses are contextually relevant to solar safety questions. All required fields present and validated. Session ID matching works correctly. History replay functionality works as expected. All existing endpoints (GET /api/, POST /api/status, GET /api/status, POST /api/swms/generate) continue to work correctly. All 4/4 backend tests passed. Backend is fully functional with no issues."
   - agent: "testing"
     message: "Completed testing of two NEW backend endpoints: (1) POST /api/hazards/from-voice - Voice Hazard Structuring: Returns 200 status in 1.12s. All required fields present (site, hazard_type, severity, description). Contextually accurate extraction from voice transcript. Severity validation working correctly (low/medium/high/critical). (2) POST /api/risk/assess - Vision Risk Assessment: Returns 200 status in 2.18s. All required fields present (observations, hazards, controls, ppe, summary, risk_level). All lists are non-empty with 5 items each. Risk level validation working correctly. Vision AI integration with GPT-4o-mini working correctly. Also verified all existing endpoints still work: GET /api/ (200 OK), POST /api/swms/generate (200 OK, 4.17s), POST /api/agent/chat (200 OK, 4.48s and 5.23s). All 6/6 backend tests passed. Backend is fully functional with no issues."
+  - agent: "testing"
+    message: "Completed testing of NEW backend endpoint POST /api/risk/watch - Continuous Risk Monitoring. Test results: Returns 200 status in 0.99s (well under 30s requirement). All required fields present and validated: has_hazard (bool: false), severity (valid: 'none'), alert (string: empty), recommendation (string: empty), timestamp (valid ISO string). Business logic correct: when severity is 'none', has_hazard is false. AI vision integration with GPT-4o-mini working correctly. Also verified all existing endpoints still work: GET /api/ (200 OK), POST /api/status (200 OK), GET /api/status (200 OK), POST /api/swms/generate (200 OK, 4.01s), POST /api/agent/chat (200 OK, 4.29s and 5.09s), POST /api/hazards/from-voice (200 OK, 1.21s), POST /api/risk/assess (200 OK, 2.10s). All 7/7 backend tests passed. Backend is fully functional with no issues."

@@ -89,6 +89,21 @@ class VisionRiskResponse(BaseModel):
     risk_level: str  # low | medium | high | critical
 
 
+class RiskWatchRequest(BaseModel):
+    image: str  # single base64 (with or without data URL prefix)
+    site: str
+    job_type: Optional[str] = ""
+    recent_alerts: Optional[List[str]] = []  # last few alert texts to avoid duplicates
+
+
+class RiskWatchResponse(BaseModel):
+    has_hazard: bool
+    severity: str  # none | low | medium | high | critical
+    alert: str
+    recommendation: str
+    timestamp: str
+
+
 @api_router.get("/")
 async def root():
     return {"message": "Hello World"}
@@ -373,6 +388,87 @@ async def assess_risk_from_images(req: VisionRiskRequest):
             ppe=["Hard hat", "Insulated gloves", "Safety boots", "Hi-vis vest"],
             summary=f"AI risk assessment for {req.job_type} at {req.site}. Review before use.",
             risk_level="medium",
+        )
+
+
+@api_router.post("/risk/watch", response_model=RiskWatchResponse)
+async def risk_watch(req: RiskWatchRequest):
+    """Continuous-monitoring endpoint: analyse a single frame and return a
+    concise alert if a new hazard appears in view."""
+    try:
+        from emergentintegrations.llm.chat import LlmChat, UserMessage, ImageContent
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"LLM library missing: {e}")
+
+    api_key = os.environ.get("EMERGENT_LLM_KEY")
+    if not api_key:
+        raise HTTPException(status_code=500, detail="EMERGENT_LLM_KEY not configured")
+
+    if not req.image:
+        raise HTTPException(status_code=400, detail="Image is required")
+
+    img = req.image
+    if "," in img and img.startswith("data:"):
+        img = img.split(",", 1)[1]
+
+    recent_context = ""
+    if req.recent_alerts:
+        recent_context = "Recent alerts you already flagged (avoid duplicating):\n" + \
+            "\n".join(f"- {a}" for a in req.recent_alerts[-5:])
+
+    system_msg = (
+        "You are a real-time safety observer for a solar-installation crew. "
+        "You look at ONE frame from a live camera feed and decide if a new safety hazard is visible. "
+        "Be strict: only flag genuine hazards (missing PPE, unsafe positioning, exposed cables, "
+        "damaged equipment, fall risk, fire/heat, obstructed egress, weather threats). "
+        "Respond ONLY with valid JSON: "
+        '{"has_hazard": true|false, '
+        '"severity": "none|low|medium|high|critical", '
+        '"alert": "one short sentence about the hazard, or empty string if none", '
+        '"recommendation": "one short action for the crew, or empty string if none"}. '
+        "If no hazard: has_hazard=false, severity='none', empty strings for alert/recommendation."
+    )
+
+    prompt = (
+        f"Site: {req.site}\n"
+        f"Job type: {req.job_type or 'unspecified'}\n\n"
+        f"{recent_context}\n\n"
+        "Analyse the current frame and return JSON now."
+    )
+
+    chat = LlmChat(
+        api_key=api_key,
+        session_id=f"watch-{uuid.uuid4()}",
+        system_message=system_msg,
+    ).with_model("openai", "gpt-4o-mini")
+
+    try:
+        reply = await chat.send_message(
+            UserMessage(text=prompt, file_contents=[ImageContent(image_base64=img)])
+        )
+    except Exception as e:
+        logger.error(f"Watch LLM error: {e}")
+        raise HTTPException(status_code=500, detail=f"Watch error: {str(e)[:200]}")
+
+    text = _strip_json_fences(reply if isinstance(reply, str) else str(reply))
+    ts = datetime.utcnow().isoformat()
+    try:
+        data = json.loads(text)
+        sev = str(data.get("severity", "none")).lower()
+        if sev not in ("none", "low", "medium", "high", "critical"):
+            sev = "none"
+        has = bool(data.get("has_hazard", False)) and sev != "none"
+        return RiskWatchResponse(
+            has_hazard=has,
+            severity=sev if has else "none",
+            alert=str(data.get("alert", "")) if has else "",
+            recommendation=str(data.get("recommendation", "")) if has else "",
+            timestamp=ts,
+        )
+    except Exception as e:
+        logger.error(f"Watch parse error: {e} | text={text[:200]}")
+        return RiskWatchResponse(
+            has_hazard=False, severity="none", alert="", recommendation="", timestamp=ts
         )
 
 
