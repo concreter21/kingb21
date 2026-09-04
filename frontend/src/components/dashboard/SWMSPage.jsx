@@ -1,9 +1,10 @@
 import React, { useState } from "react";
-import { FileText, Plus, Search, Download, CheckCircle2, Clock, FileEdit, Sparkles, HardHat, ShieldAlert, ListChecks, X } from "lucide-react";
+import { FileText, Plus, Search, Download, CheckCircle2, Clock, FileEdit, Sparkles, HardHat, ShieldAlert, ListChecks, X, FileDown } from "lucide-react";
 import axios from "axios";
 import DashboardLayout from "./DashboardLayout";
 import { swmsList } from "../../mock";
 import { useToast } from "../../hooks/use-toast";
+import { exportSWMSPdf } from "../../lib/swmsPdf";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -93,6 +94,16 @@ const SWMSPage = () => {
     closeModal();
   };
 
+  const handleExportPdf = () => {
+    if (!aiResult) return;
+    try {
+      const ref = exportSWMSPdf({ site, jobType, notes, aiResult });
+      toast({ title: "PDF exported", description: `${ref} downloaded successfully.` });
+    } catch (err) {
+      toast({ title: "Export failed", description: err.message, variant: "destructive" });
+    }
+  };
+
   return (
     <DashboardLayout
       title="Safe Work Method Statements"
@@ -175,7 +186,40 @@ const SWMSPage = () => {
               <div className="text-[11px] text-slate-500">{swms.updated}</div>
               <div className="flex justify-end">
                 <button
-                  onClick={() => toast({ title: "Downloaded", description: `${swms.id} PDF exported.` })}
+                  onClick={() => {
+                    try {
+                      const ref = exportSWMSPdf({
+                        site: swms.site,
+                        jobType: swms.title,
+                        notes: "",
+                        author: swms.author,
+                        aiResult: {
+                          summary: `${swms.title} for site ${swms.site}. This SWMS covers standard safety controls, hazard mitigation and required PPE for the scope of work.`,
+                          hazards: [
+                            "Working at heights on pitched/flat roof surfaces",
+                            "Electrical shock from live DC & AC circuits",
+                            "Manual handling of PV modules and inverters",
+                            "Weather exposure – UV, heat stress, wind gusts",
+                            "Falling tools/objects to persons below",
+                          ],
+                          controls: [
+                            "Erect edge protection or use certified fall-arrest harness with rated anchor points",
+                            "Isolate and lock out DC & AC circuits; verify dead with tested meter before touching",
+                            "Two-person lift for modules above 20kg; use mechanical lift for roof-top delivery",
+                            "Monitor forecast; stop work above wind speeds of 40 km/h or during storms",
+                            "Establish exclusion zone below work area with cones and signage",
+                          ],
+                          ppe: [
+                            "Hard hat", "Safety glasses (UV)", "Insulated gloves (Class 0)",
+                            "Non-slip safety boots", "Hi-vis vest", "Fall-arrest harness",
+                          ],
+                        },
+                      });
+                      toast({ title: "PDF exported", description: `${ref} downloaded.` });
+                    } catch (e) {
+                      toast({ title: "Export failed", description: e.message, variant: "destructive" });
+                    }
+                  }}
                   className="p-1.5 rounded hover:bg-slate-200 text-slate-500 hover:text-slate-800 transition-colors"
                   title="Download PDF"
                 >
@@ -326,6 +370,15 @@ const SWMSPage = () => {
                 className="h-9 px-4 rounded-lg text-[13px] font-medium text-slate-700 hover:bg-white transition-colors"
               >
                 Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleExportPdf}
+                disabled={!aiResult}
+                className="h-9 px-4 rounded-lg bg-white border border-slate-200 hover:border-slate-300 text-slate-800 text-[13px] font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center gap-1.5"
+              >
+                <FileDown className="w-[14px] h-[14px]" />
+                Export PDF
               </button>
               <button
                 type="button"

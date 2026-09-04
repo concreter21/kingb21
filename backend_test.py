@@ -238,6 +238,210 @@ def test_swms_generate_endpoint():
         print_error(f"Request failed: {str(e)}")
         return False
 
+def test_agent_chat_endpoint():
+    """Test POST /api/agent/chat endpoint with and without history"""
+    print_test_header("POST /api/agent/chat - AI Agent Chat (Without History)")
+    
+    try:
+        # Test 1: Without history
+        test_data_no_history = {
+            "session_id": "test-session-001",
+            "message": "How do I safely isolate DC before rooftop PV work?",
+            "history": []
+        }
+        
+        print(f"Request payload (without history):")
+        print(json.dumps(test_data_no_history, indent=2))
+        
+        # Track response time
+        start_time = time.time()
+        
+        response = requests.post(
+            f"{BACKEND_URL}/agent/chat",
+            json=test_data_no_history,
+            timeout=35  # 30s requirement + buffer
+        )
+        
+        end_time = time.time()
+        response_time = end_time - start_time
+        
+        print(f"\nStatus Code: {response.status_code}")
+        print(f"Response Time: {response_time:.2f} seconds")
+        
+        # Check response time
+        if response_time < 30:
+            print_success(f"Response time ({response_time:.2f}s) is under 30 seconds")
+        else:
+            print_warning(f"Response time ({response_time:.2f}s) exceeds 30 seconds")
+        
+        # Check status code
+        if response.status_code == 200:
+            print_success("Agent chat returned 200 status")
+        else:
+            print_error(f"Expected 200, got {response.status_code}")
+            print(f"Response body: {response.text}")
+            return False
+        
+        # Parse and validate response
+        try:
+            data = response.json()
+            print(f"\nResponse structure:")
+            print(json.dumps(data, indent=2))
+            
+            # Check required fields
+            required_fields = ["reply", "session_id"]
+            all_fields_present = True
+            
+            for field in required_fields:
+                if field in data:
+                    print_success(f"Response contains '{field}' field")
+                else:
+                    print_error(f"Response missing '{field}' field")
+                    all_fields_present = False
+            
+            if not all_fields_present:
+                return False
+            
+            # Validate reply is non-empty string
+            if isinstance(data["reply"], str):
+                if len(data["reply"]) > 0:
+                    print_success(f"'reply' is a non-empty string ({len(data['reply'])} characters)")
+                    print(f"  Reply preview: {data['reply'][:150]}...")
+                    
+                    # Check if reply is contextually relevant to solar safety
+                    solar_keywords = ["dc", "isolate", "solar", "pv", "safety", "lockout", "tagout", "circuit", "electrical", "disconnect"]
+                    reply_lower = data["reply"].lower()
+                    relevant = any(keyword in reply_lower for keyword in solar_keywords)
+                    
+                    if relevant:
+                        print_success("Reply appears contextually relevant to solar safety")
+                    else:
+                        print_warning("Reply may not be contextually relevant to solar safety")
+                else:
+                    print_error("'reply' is an empty string")
+                    return False
+            else:
+                print_error("'reply' is not a string")
+                return False
+            
+            # Validate session_id matches input
+            if data["session_id"] == test_data_no_history["session_id"]:
+                print_success(f"'session_id' matches input: {data['session_id']}")
+            else:
+                print_error(f"'session_id' mismatch. Expected: {test_data_no_history['session_id']}, Got: {data['session_id']}")
+                return False
+            
+        except json.JSONDecodeError as e:
+            print_error(f"Failed to parse JSON response: {str(e)}")
+            print(f"Response text: {response.text}")
+            return False
+        
+        # Test 2: With history
+        print_test_header("POST /api/agent/chat - AI Agent Chat (With History)")
+        
+        test_data_with_history = {
+            "session_id": "test-session-001",
+            "message": "What PPE should I add?",
+            "history": [
+                {"role": "user", "content": "Working on a 400kW commercial roof array"},
+                {"role": "assistant", "content": "Ensure LOTO and fall protection."}
+            ]
+        }
+        
+        print(f"Request payload (with history):")
+        print(json.dumps(test_data_with_history, indent=2))
+        
+        # Track response time
+        start_time = time.time()
+        
+        response_with_history = requests.post(
+            f"{BACKEND_URL}/agent/chat",
+            json=test_data_with_history,
+            timeout=35
+        )
+        
+        end_time = time.time()
+        response_time_with_history = end_time - start_time
+        
+        print(f"\nStatus Code: {response_with_history.status_code}")
+        print(f"Response Time: {response_time_with_history:.2f} seconds")
+        
+        # Check response time
+        if response_time_with_history < 30:
+            print_success(f"Response time ({response_time_with_history:.2f}s) is under 30 seconds")
+        else:
+            print_warning(f"Response time ({response_time_with_history:.2f}s) exceeds 30 seconds")
+        
+        # Check status code
+        if response_with_history.status_code == 200:
+            print_success("Agent chat with history returned 200 status")
+        else:
+            print_error(f"Expected 200, got {response_with_history.status_code}")
+            print(f"Response body: {response_with_history.text}")
+            return False
+        
+        # Parse and validate response
+        try:
+            data_with_history = response_with_history.json()
+            print(f"\nResponse structure:")
+            print(json.dumps(data_with_history, indent=2))
+            
+            # Check required fields
+            all_fields_present = True
+            
+            for field in required_fields:
+                if field in data_with_history:
+                    print_success(f"Response contains '{field}' field")
+                else:
+                    print_error(f"Response missing '{field}' field")
+                    all_fields_present = False
+            
+            if not all_fields_present:
+                return False
+            
+            # Validate reply is non-empty string
+            if isinstance(data_with_history["reply"], str):
+                if len(data_with_history["reply"]) > 0:
+                    print_success(f"'reply' is a non-empty string ({len(data_with_history['reply'])} characters)")
+                    print(f"  Reply preview: {data_with_history['reply'][:150]}...")
+                    
+                    # Check if reply is contextually relevant to PPE
+                    ppe_keywords = ["ppe", "helmet", "gloves", "boots", "harness", "glasses", "vest", "protection", "safety"]
+                    reply_lower = data_with_history["reply"].lower()
+                    relevant = any(keyword in reply_lower for keyword in ppe_keywords)
+                    
+                    if relevant:
+                        print_success("Reply appears contextually relevant to PPE question")
+                    else:
+                        print_warning("Reply may not be contextually relevant to PPE question")
+                else:
+                    print_error("'reply' is an empty string")
+                    return False
+            else:
+                print_error("'reply' is not a string")
+                return False
+            
+            # Validate session_id matches input
+            if data_with_history["session_id"] == test_data_with_history["session_id"]:
+                print_success(f"'session_id' matches input: {data_with_history['session_id']}")
+            else:
+                print_error(f"'session_id' mismatch. Expected: {test_data_with_history['session_id']}, Got: {data_with_history['session_id']}")
+                return False
+            
+            return True
+            
+        except json.JSONDecodeError as e:
+            print_error(f"Failed to parse JSON response: {str(e)}")
+            print(f"Response text: {response_with_history.text}")
+            return False
+            
+    except requests.Timeout:
+        print_error("Request timed out (>35 seconds)")
+        return False
+    except Exception as e:
+        print_error(f"Request failed: {str(e)}")
+        return False
+
 def run_all_tests():
     """Run all backend tests and report results"""
     print(f"\n{Colors.BLUE}{'='*80}{Colors.END}")
@@ -255,6 +459,9 @@ def run_all_tests():
     
     # Test 3: SWMS generation endpoint
     results["POST /api/swms/generate"] = test_swms_generate_endpoint()
+    
+    # Test 4: Agent chat endpoint (NEW)
+    results["POST /api/agent/chat"] = test_agent_chat_endpoint()
     
     # Summary
     print(f"\n{Colors.BLUE}{'='*80}{Colors.END}")

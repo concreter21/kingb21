@@ -1,5 +1,6 @@
 import React from "react";
 import { NavLink, useNavigate } from "react-router-dom";
+import AgentChat from "./AgentChat";
 import {
   LayoutDashboard,
   ShieldAlert,
@@ -120,6 +121,9 @@ const DashboardLayout = ({ children, title, subtitle, action }) => {
           {children}
         </main>
       </div>
+
+      {/* Floating AI assistant */}
+      <AgentChat />
     </div>
   );
 };

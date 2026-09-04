@@ -45,6 +45,22 @@ class SWMSSection(BaseModel):
     summary: str
 
 
+class ChatMessage(BaseModel):
+    role: str  # "user" or "assistant"
+    content: str
+
+
+class AgentChatRequest(BaseModel):
+    session_id: str
+    message: str
+    history: Optional[List[ChatMessage]] = []
+
+
+class AgentChatResponse(BaseModel):
+    reply: str
+    session_id: str
+
+
 @api_router.get("/")
 async def root():
     return {"message": "Hello World"}
@@ -130,6 +146,50 @@ async def generate_swms(req: SWMSGenerateRequest):
                  "Non-slip safety boots", "Hi-vis vest"],
             summary=f"SWMS for {req.job_type} at {req.site}. Follow all controls and PPE listed.",
         )
+
+
+@api_router.post("/agent/chat", response_model=AgentChatResponse)
+async def agent_chat(req: AgentChatRequest):
+    """SolarSafe in-app assistant for guidance & troubleshooting."""
+    try:
+        from emergentintegrations.llm.chat import LlmChat, UserMessage
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"LLM library missing: {e}")
+
+    api_key = os.environ.get("EMERGENT_LLM_KEY")
+    if not api_key:
+        raise HTTPException(status_code=500, detail="EMERGENT_LLM_KEY not configured")
+
+    system_msg = (
+        "You are SolarSafe Assistant, a helpful in-app AI for a solar-installation "
+        "safety management platform. You help site supervisors and crew with: "
+        "SWMS (Safe Work Method Statements), hazard reporting, lockout/tagout procedures, "
+        "compliance docs (AS/NZS 5033, DIN VDE 0100-712), PPE, and troubleshooting the app. "
+        "Be concise, friendly, and practical. Use short paragraphs and bullet points where useful. "
+        "If asked about non-safety topics, gently redirect back to solar safety."
+    )
+
+    chat = LlmChat(
+        api_key=api_key,
+        session_id=req.session_id,
+        system_message=system_msg,
+    ).with_model("openai", "gpt-4o-mini")
+
+    # Replay history so the model has context
+    for msg in (req.history or [])[-8:]:
+        if msg.role == "user":
+            try:
+                await chat.send_message(UserMessage(text=msg.content))
+            except Exception:
+                pass
+
+    try:
+        reply = await chat.send_message(UserMessage(text=req.message))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Agent error: {str(e)[:200]}")
+
+    reply_text = reply if isinstance(reply, str) else str(reply)
+    return AgentChatResponse(reply=reply_text, session_id=req.session_id)
 
 
 app.include_router(api_router)

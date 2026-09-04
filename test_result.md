@@ -152,6 +152,21 @@ backend:
       - working: true
         agent: "testing"
         comment: "Tested successfully with test case: site='Warehouse Array – Hamburg Hafen', job_type='Commercial Array Mounting – 150kW', notes='Steep pitch roof, adjacent live overhead line'. Returns 200 status in 6.25 seconds (well under 30s requirement). Response contains all required fields (hazards, controls, ppe, summary) with meaningful content. AI integration with emergentintegrations library and GPT-4o-mini is working correctly. EMERGENT_LLM_KEY is properly configured. Minor: logger is referenced before definition on line 104, but doesn't affect functionality since no errors occurred during testing."
+      - working: true
+        agent: "testing"
+        comment: "Re-tested successfully. Returns 200 status in 4.06 seconds. All fields present with meaningful content. AI integration continues to work correctly."
+
+  - task: "POST /api/agent/chat - AI Agent Chat"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "Tested successfully with two scenarios: (1) Without history - message='How do I safely isolate DC before rooftop PV work?', session_id='test-session-001'. Returns 200 status in 3.53 seconds. Response contains required fields (reply, session_id). Reply is non-empty (1240 chars) and contextually relevant to solar safety (mentions DC isolator, LOTO, voltage verification, AS/NZS 5033 compliance). (2) With history - message='What PPE should I add?' with conversation context about 400kW commercial roof array. Returns 200 status in 5.09 seconds. Reply is non-empty (974 chars) and contextually relevant to PPE (mentions hard hats, safety glasses, fall protection harnesses, gloves). Session IDs match input correctly. AI integration with emergentintegrations library and GPT-4o-mini is working correctly. History replay functionality (last 8 messages) works as expected."
 
 frontend:
   # No frontend tasks to test as per instructions
@@ -159,11 +174,12 @@ frontend:
 metadata:
   created_by: "testing_agent"
   version: "1.0"
-  test_sequence: 1
+  test_sequence: 2
   run_ui: false
 
 test_plan:
   current_focus:
+    - "POST /api/agent/chat - AI Agent Chat"
     - "POST /api/swms/generate - AI SWMS generation"
     - "GET /api/ root endpoint"
     - "Status endpoints"
@@ -174,3 +190,5 @@ test_plan:
 agent_communication:
   - agent: "testing"
     message: "Completed comprehensive backend API testing. All endpoints are working correctly. The new AI SWMS generation endpoint is functioning as expected with proper response structure, meaningful content, and acceptable response time (6.25s < 30s). The emergentintegrations library integration with GPT-4o-mini is working properly. All existing endpoints (root and status) continue to work correctly. Backend testing is complete with all tests passing."
+  - agent: "testing"
+    message: "Completed testing of new POST /api/agent/chat endpoint. Tested both scenarios: (1) without history and (2) with conversation history. Both tests passed successfully. Response times are excellent (3.53s and 5.09s, well under 30s requirement). Responses are contextually relevant to solar safety questions. All required fields present and validated. Session ID matching works correctly. History replay functionality works as expected. All existing endpoints (GET /api/, POST /api/status, GET /api/status, POST /api/swms/generate) continue to work correctly. All 4/4 backend tests passed. Backend is fully functional with no issues."
