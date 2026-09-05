@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import AgentChat from "./AgentChat";
+import InstallPrompt from "./InstallPrompt";
 import {
   LayoutDashboard,
   ShieldAlert,
@@ -158,6 +159,9 @@ const DashboardLayout = ({ children, title, subtitle, action }) => {
 
       {/* Floating AI assistant */}
       <AgentChat />
+
+      {/* PWA install prompt */}
+      <InstallPrompt />
     </div>
   );
 };
