@@ -69,12 +69,27 @@ export function buildHtml(a: any): string {
        <p><b>Recommendation:</b> ${esc(r.density.recommendation)}</p>`
     : "";
 
+  const specRows = (r.machinery && (r.machinery.spec_checks || []).length)
+    ? `<table><tr><th>Item</th><th>Requirement</th><th>Observed</th><th>Status</th><th>Ref</th></tr>
+       ${(r.machinery.spec_checks || []).map((sc: any) => {
+          const pass = String(sc.status).toLowerCase() === "pass";
+          return `<tr><td>${esc(sc.item)}</td><td>${esc(sc.requirement)}</td><td>${esc(sc.observed)}</td><td style="text-align:center"><span class="pill" style="background:${pass ? "#16A34A" : "#DC2626"}">${esc(sc.status)}</span></td><td>${esc(sc.reference)}</td></tr>`;
+        }).join("")}
+       </table>`
+    : "";
+
+  const machineryOutcome = a.equipment_outcome || (r.machinery && r.machinery.outcome) || "";
   const machinery = r.machinery
-    ? `<h2>Machinery Safety</h2>
-       <p><b>Machine:</b> ${esc(r.machinery.machine_type)}</p>
+    ? `<h2>Machinery Safety &amp; Equipment</h2>
+       ${machineryOutcome ? `<div class="status ${String(machineryOutcome).toUpperCase() === "PASS" ? "approved" : "draft"}" style="${String(machineryOutcome).toUpperCase() === "HAZARD" ? "background:#DC2626;color:#fff;" : ""}">OUTCOME: ${esc(String(machineryOutcome).toUpperCase())}${String(machineryOutcome).toUpperCase() === "PASS" ? " — SAFE TO OPERATE" : " — DO NOT OPERATE"}</div>` : ""}
+       <p><b>Equipment:</b> ${esc([r.machinery.brand, r.machinery.model].filter((x: string) => x && x !== "Unknown").join(" ") || r.machinery.machine_type)} (${esc(r.machinery.machine_type)})</p>
+       ${r.machinery.identifiers ? `<p><b>Plate / Serial:</b> ${esc(r.machinery.identifiers)}</p>` : ""}
+       ${r.machinery.manual_reference ? `<p><b>Manual / Standard:</b> ${esc(r.machinery.manual_reference)}</p>` : ""}
        <p><b>Guarding:</b> ${esc(r.machinery.guarding_status)}</p>
        <p><b>Isolation / LOTO:</b> ${esc(r.machinery.isolation_note)}</p>
-       <p><b>Compliance (AS 4024):</b> ${esc(r.machinery.compliance_note)}</p>`
+       <p><b>Compliance:</b> ${esc(r.machinery.compliance_note)}</p>
+       ${r.machinery.warranty_insurance_note ? `<p><b>Warranty / Insurance:</b> ${esc(r.machinery.warranty_insurance_note)}</p>` : ""}
+       ${specRows}`
     : "";
 
   const actions = (r.recommended_actions || []).map((x: string) => `<li>${esc(x)}</li>`).join("");

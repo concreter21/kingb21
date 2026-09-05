@@ -5,10 +5,10 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Image } from "expo-image";
 import * as Haptics from "expo-haptics";
-import { CaretLeft, FilePdf, CheckCircle, SealCheck, Clock } from "phosphor-react-native";
+import { CaretLeft, FilePdf, CheckCircle, SealCheck, Clock, WarningOctagon } from "phosphor-react-native";
 
 import { makeStyles, fonts, useTheme } from "@/src/theme";
-import { RiskBadge, SectionLabel } from "@/src/components/ui";
+import { RiskBadge, SectionLabel, StatusBadge } from "@/src/components/ui";
 import { api, fileUrl } from "@/src/api";
 import { exportPdf } from "@/src/pdf";
 import { useAuth } from "@/src/auth";
@@ -189,13 +189,85 @@ export default function AssessmentDetail() {
           {/* Machinery */}
           {r.machinery && (
             <>
-              <View style={s.sectionHead}><SectionLabel>Machinery Safety</SectionLabel></View>
+              {/* Outcome banner */}
+              {(() => {
+                const outcome = (a.equipment_outcome || r.machinery.outcome || "").toUpperCase();
+                if (outcome === "PASS" || outcome === "HAZARD") {
+                  const pass = outcome === "PASS";
+                  return (
+                    <View style={[s.outcomeBox, pass ? s.outcomePass : s.outcomeHazard]}>
+                      {pass ? <SealCheck size={24} color={colors.onSuccess} weight="fill" /> : <WarningOctagon size={24} color={colors.onError} weight="fill" />}
+                      <View style={{ flex: 1 }}>
+                        <Text style={[s.outcomeTitle, { color: pass ? colors.onSuccess : colors.onError }]}>
+                          {pass ? "PASS — SAFE TO OPERATE" : "HAZARD — DO NOT OPERATE"}
+                        </Text>
+                        <Text style={[s.outcomeSub, { color: pass ? colors.onSuccess : colors.onError }]}>
+                          {pass ? "Within manufacturer & safety spec" : "Out of safety spec — rectify before use"}
+                        </Text>
+                      </View>
+                    </View>
+                  );
+                }
+                return null;
+              })()}
+
+              {/* Equipment identification */}
+              <View style={s.sectionHead}><SectionLabel>Equipment Identified</SectionLabel></View>
               <View style={s.infoCard}>
-                <Text style={s.infoLine}><Text style={s.swmsKey}>MACHINE: </Text>{r.machinery.machine_type}</Text>
+                <View style={s.equipTop}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.equipName}>{[r.machinery.brand, r.machinery.model].filter((x: string) => x && x !== "Unknown").join(" ") || r.machinery.machine_type || "Unidentified"}</Text>
+                    <Text style={s.equipType}>{r.machinery.machine_type}</Text>
+                  </View>
+                  {r.machinery.identification_confidence ? (
+                    <View style={s.confBadge}><Text style={s.confText}>{String(r.machinery.identification_confidence).toUpperCase()} CONF.</Text></View>
+                  ) : null}
+                </View>
+                {r.machinery.identifiers ? <Text style={s.infoLine}><Text style={s.swmsKey}>PLATE/SERIAL: </Text>{r.machinery.identifiers}</Text> : null}
+                {r.machinery.manual_reference ? <Text style={s.infoLine}><Text style={s.swmsKey}>MANUAL / STANDARD: </Text>{r.machinery.manual_reference}</Text> : null}
                 <Text style={s.infoLine}><Text style={s.swmsKey}>GUARDING: </Text>{r.machinery.guarding_status}</Text>
                 <Text style={s.infoLine}><Text style={s.swmsKey}>ISOLATION: </Text>{r.machinery.isolation_note}</Text>
-                <Text style={s.infoLine}><Text style={s.swmsKey}>AS 4024: </Text>{r.machinery.compliance_note}</Text>
+                {r.machinery.compliance_note ? <Text style={s.infoLine}><Text style={s.swmsKey}>COMPLIANCE: </Text>{r.machinery.compliance_note}</Text> : null}
               </View>
+
+              {/* Spec cross-reference */}
+              {(r.machinery.spec_checks || []).length > 0 && (
+                <>
+                  <View style={s.sectionHead}><SectionLabel>Spec Cross-Reference</SectionLabel></View>
+                  {r.machinery.spec_checks.map((c: any, i: number) => {
+                    const pass = String(c.status).toLowerCase() === "pass";
+                    return (
+                      <View key={i} style={s.specCard} testID={`spec-${i}`}>
+                        <View style={s.specTop}>
+                          <Text style={s.specItem}>{c.item}</Text>
+                          <StatusBadge label={pass ? "PASS" : "FAIL"} bg={pass ? colors.success : colors.error} fg={pass ? colors.onSuccess : colors.onError} />
+                        </View>
+                        <Text style={s.infoLine}><Text style={s.swmsKey}>REQUIRED: </Text>{c.requirement}</Text>
+                        <Text style={s.infoLine}><Text style={s.swmsKey}>OBSERVED: </Text>{c.observed}</Text>
+                        {c.reference ? <Text style={s.specRef}>{c.reference}</Text> : null}
+                      </View>
+                    );
+                  })}
+                </>
+              )}
+
+              {/* Warranty / insurance */}
+              {r.machinery.warranty_insurance_note ? (
+                <>
+                  <View style={s.sectionHead}><SectionLabel>Warranty & Insurance</SectionLabel></View>
+                  <View style={s.warrantyCard}>
+                    <Text style={s.warrantyText}>{r.machinery.warranty_insurance_note}</Text>
+                  </View>
+                </>
+              ) : null}
+
+              {/* Auto hazard report link */}
+              {a.hazard_incident_id ? (
+                <Pressable style={s.hazardLink} onPress={() => router.push("/incidents" as any)} testID="view-hazard-report">
+                  <WarningOctagon size={20} color={colors.onError} weight="fill" />
+                  <Text style={s.hazardLinkText}>HAZARD REPORT GENERATED — VIEW & SEND</Text>
+                </Pressable>
+              ) : null}
             </>
           )}
 
@@ -278,6 +350,24 @@ const useStyles = makeStyles((c) => ({
   swmsLine: { fontFamily: fonts.body, fontSize: 13, color: c.onSurfaceSecondary, lineHeight: 20, marginTop: 2 },
   swmsKey: { fontFamily: fonts.monoBold, fontSize: 11, color: c.muted },
   infoCard: { borderWidth: 2, borderColor: c.borderStrong, padding: 14, gap: 6 },
+  outcomeBox: { flexDirection: "row", alignItems: "center", gap: 12, padding: 14, marginTop: 16 },
+  outcomePass: { backgroundColor: c.success },
+  outcomeHazard: { backgroundColor: c.error },
+  outcomeTitle: { fontFamily: fonts.monoBold, fontSize: 14, letterSpacing: 1 },
+  outcomeSub: { fontFamily: fonts.body, fontSize: 12, marginTop: 2, opacity: 0.9 },
+  equipTop: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: 8, marginBottom: 4 },
+  equipName: { fontFamily: fonts.display, fontSize: 18, color: c.onSurface },
+  equipType: { fontFamily: fonts.mono, fontSize: 11, color: c.muted, marginTop: 1 },
+  confBadge: { backgroundColor: c.surfaceInverse, paddingHorizontal: 8, paddingVertical: 4 },
+  confText: { fontFamily: fonts.monoBold, fontSize: 10, color: c.onSurfaceInverse, letterSpacing: 0.5 },
+  specCard: { borderWidth: 2, borderColor: c.borderStrong, padding: 14, marginBottom: 12, gap: 4 },
+  specTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 4 },
+  specItem: { flex: 1, fontFamily: fonts.bodySemi, fontSize: 15, color: c.onSurface },
+  specRef: { fontFamily: fonts.mono, fontSize: 11, color: c.muted, marginTop: 4 },
+  warrantyCard: { backgroundColor: c.warning, padding: 14 },
+  warrantyText: { fontFamily: fonts.bodyMed, fontSize: 13, color: c.onWarning, lineHeight: 20 },
+  hazardLink: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, backgroundColor: c.error, paddingVertical: 16, marginTop: 20 },
+  hazardLinkText: { fontFamily: fonts.monoBold, fontSize: 13, color: c.onError, letterSpacing: 1 },
   densityTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 },
   bigNum: { fontFamily: fonts.monoBold, fontSize: 44, color: c.onSurface },
   bigNumLabel: { fontFamily: fonts.mono, fontSize: 11, color: c.muted, letterSpacing: 1 },

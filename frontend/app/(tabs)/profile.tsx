@@ -3,7 +3,7 @@ import { View, Text, ScrollView, Pressable } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
-import { FileText, Warning, TrafficSign, SignOut, User, CaretRight } from "phosphor-react-native";
+import { FileText, Warning, TrafficSign, SignOut, User, Gear, CaretRight } from "phosphor-react-native";
 
 import { makeStyles, fonts, useTheme } from "@/src/theme";
 import { SectionLabel } from "@/src/components/ui";
@@ -20,6 +20,7 @@ export default function Profile() {
   const { data: dash } = useQuery({ queryKey: ["dashboard"], queryFn: () => api.get("/dashboard") });
 
   const links = [
+    { key: "equipment", title: "Equipment Register", desc: `${dash?.equipment_count ?? 0} assessed`, icon: Gear, path: "/equipment" },
     { key: "documents", title: "Documents & PDFs", desc: `${dash?.assessments_count ?? 0} assessments`, icon: FileText, path: "/documents" },
     { key: "incidents", title: "Incident Reports", desc: `${dash?.open_incidents ?? 0} open`, icon: Warning, path: "/incidents" },
     { key: "traffic", title: "Traffic Zones", desc: `${dash?.traffic_zones ?? 0} zones`, icon: TrafficSign, path: "/traffic" },

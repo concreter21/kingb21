@@ -1,0 +1,46 @@
+{
+  "summary": "Backend-only iteration. New machinery AI pipeline verified end-to-end against public backend (https://whs-safety-hub.preview.emergentagent.com/api) using Gemini 3.1 Pro via EMERGENT_LLM_KEY. Created /app/backend/tests/test_machinery.py with 2 AI calls total. Machinery suite: 10/11 PASSED. Security regression /app/backend/tests/test_security.py: 33/33 PASSED (no regressions). Verified: (1) POST /api/ai/assess mode='machinery' returns result.machinery with all 12 required sub-keys (machine_type, brand, model, identifiers, identification_confidence, manual_reference, guarding_status, isolation_note, spec_checks[{item,requirement,observed,status,reference}], warranty_insurance_note, compliance_note, outcome) plus top-level equipment_outcome and hazard_incident_id. AI on the test image (Toyota 8FGCU25 forklift + electrical panel) returned outcome=HAZARD and correctly auto-created an incident with source=='machinery-ai', matching assessment_id, status='open'. (2) GET /api/equipment: worker sees own row (brand=Toyota, model=8FGCU25, machine_type=Forklift, outcome=HAZARD, assessment_id linked); Safety Officer sees all. (3) Persistence: GET /api/assessments/{id} returns both equipment_outcome and hazard_incident_id. (4) GET /api/dashboard now exposes integer equipment_count and equipment_hazard. (5) Regression: risk mode still returns valid structured result (overall_risk_level, hazards[], summary) and does NOT create equipment or auto-incident rows for that assessment (backend guard is mode-gated). One soft failure: the AI populated result.machinery even when mode='risk' because the image contained a visibly identifiable forklift — the backend correctly ignores this (no equipment/incident spawned), so this is a prompt-hygiene issue, not a functional bug.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/ai/assess", "issue": "For non-machinery modes, result.machinery is expected to be null per spec but the AI model populates it when the image contains identifiable machinery (observed: risk mode returned brand=Toyota, model=8FGCU25, outcome=HAZARD inside result.machinery). Backend behaviour is still correct — no Equipment Register row and no auto-incident are created for non-machinery modes (mode-gated at server.py:405). Consider (a) explicitly nulling result['machinery'] server-side when body.mode != 'machinery' before persisting/returning, or (b) tightening the prompt schema so the AI omits machinery for non-machinery modes."},
+      {"endpoint": "n/a (test files)", "issue": "PytestRemovedIn10Warning: class-scoped fixtures defined as instance methods in test_security.py (worker_assessment, worker_file_path) and test_machinery.py (machinery_result, risk_result). Migrate to @classmethod for pytest 10 compatibility. Non-blocking."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_machinery.py",
+    "/app/backend/tests/test_security.py",
+    "/app/test_reports/pytest/pytest_machinery.xml",
+    "/app/test_reports/pytest/pytest_security.xml"
+  ],
+  "action_items": [
+    "Optional (spec-hygiene): in POST /api/ai/assess, after run_ai() returns, set result['machinery']=None and result['hazard_report']=None when body.mode != 'machinery' to enforce the documented contract 'Non-machinery modes: result.machinery is null'. Currently the AI can leak a populated machinery block; the backend correctly ignores it so no data pollution occurs, but the API contract diverges.",
+    "Optional: modernise class-scoped fixtures to @classmethod to silence PytestRemovedIn10Warning in both test files."
+  ],
+  "critical_code_review_comments": [
+    "Machinery pipeline in ai_assess (server.py:404-444) is well-guarded: outcome is normalised to PASS|HAZARD with a sensible fallback from overall_risk_level, both equipment and (conditionally) incident are inserted, and the assessment doc is updated with equipment_outcome + hazard_incident_id for later GETs.",
+    "Equipment Register (/api/equipment) correctly applies the same worker-vs-privileged visibility model as assessments.",
+    "Dashboard now includes equipment_count and equipment_hazard integers (server.py:641-642) — verified as int type in response.",
+    "Auto-raised incident sets source='machinery-ai' and links assessment_id, enabling deterministic downstream tracing.",
+    "Minor spec deviation: no server-side null-out of result.machinery for non-machinery modes; relies solely on prompt discipline (see minor issue above).",
+    "server.py is 683 lines — approaching the 700-line split threshold; consider splitting into routers/{auth,assess,loto,access,traffic,incidents,dashboard}.py in a future refactor."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_machinery.py (new)"
+  ],
+  "success_rate": {
+    "backend": "43/44 = 97.7% (machinery 10/11 + security 33/33). The 1 failure is an AI-prompt spec divergence with no functional impact — backend safeguards work correctly.",
+    "frontend": "not tested (backend-only request)"
+  },
+  "seed_data_creation": "Two AI assessments created via safety@tk.com + worker@tk.com (TEST_machinery_forklift, TEST_risk_regression) plus one equipment row and one incident row (auto-raised for the HAZARD machinery assessment). Security suite additionally seeded TEST_* users, LOTO locks, incidents, traffic zones and visitor access records. All test data prefixed 'TEST_' for identification; no cleanup implemented (persists in test_database).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Machinery pipeline is verified. If code around ai_assess() / /api/equipment / dashboard equipment counts changes, re-run: pytest /app/backend/tests/test_machinery.py -v --junitxml=/app/test_reports/pytest/pytest_machinery.xml (uses 2 AI calls, ~30-45s). Security regression: pytest /app/backend/tests/test_security.py (~52s, no AI). Both files are self-contained (fixtures inline) and depend on EXPO_PUBLIC_BACKEND_URL + PIL + requests + emergentintegrations. The test_risk_machinery_is_null_or_absent assertion is intentionally strict to surface the AI-prompt leak — flip it to expect a possibly-populated machinery block if the spec is relaxed, or add server-side null-out per the action item and it will pass.",
+  "rca_of_issue": "One failing assertion: TestNonMachineryRegression.test_risk_machinery_is_null_or_absent. Repro: POST /api/ai/assess mode='risk' with a JPEG that contains a clearly-identifiable Toyota 8FGCU25 forklift + electrical panel. Expected per spec: result.machinery is null. Observed: result.machinery = {brand:'Toyota', model:'8FGCU25', outcome:'HAZARD', ...}. Root cause: run_ai() attaches the MACHINERY_SCHEMA and hazard_report schema only when mode=='machinery', but the base JSON_SCHEMA_INSTRUCTION already declares a 'machinery' key with default sub-fields and only says 'may be null' for non-machinery modes. Gemini 3.1 Pro, given a strong machinery visual signal, populates the block anyway. Backend then never inspects result.machinery unless body.mode=='machinery' (server.py:405), so no equipment row or incident is created for the risk assessment (verified). Mitigation (recommended): after run_ai() returns, if body.mode != 'machinery' set result['machinery']=None and result['hazard_report']=None before persistence + response. Zero-risk change; brings API in line with the documented contract."
+}

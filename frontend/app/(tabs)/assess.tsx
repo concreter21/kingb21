@@ -16,7 +16,7 @@ const MODES = [
   { key: "risk", label: "Risk", hint: "Live risk assessment", icon: WarningOctagon },
   { key: "swms", label: "SWMS", hint: "Safe work method statement", icon: ClipboardText },
   { key: "density", label: "Density", hint: "Worker density & spacing", icon: UsersThree },
-  { key: "machinery", label: "Machine", hint: "Machine safety check", icon: Gear },
+  { key: "machinery", label: "Machine", hint: "ID equipment & spec-check", icon: Gear },
 ];
 
 export default function Assess() {

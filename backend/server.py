@@ -196,8 +196,34 @@ MODE_PROMPTS = {
     "risk": """You are a certified Australian WHS safety officer. Analyse this workplace photo and produce a LIVE RISK ASSESSMENT aligned with the WHS Act 2011 and the hierarchy of controls.""",
     "swms": """You are a certified Australian WHS safety officer. From this workplace photo, autonomously draft a SAFE WORK METHOD STATEMENT (SWMS) for the high-risk construction/warehouse activity visible, aligned with WHS Regulation 2011.""",
     "density": """You are a warehouse safety analyst. Analyse this photo for WORKER DENSITY and spacing. Estimate number of people, crowding, and social/operational spacing risk.""",
-    "machinery": """You are a machinery safety engineer. Analyse this photo of machinery/plant for MACHINERY SAFETY hazards: guarding, isolation points, pinch points, and compliance with AS 4024 machine safety standards.""",
+    "machinery": """You are a senior machinery & plant safety engineer for an Australian food-manufacturing warehouse. Analyse this photo of an electronic device, plant or machine to the very best of your ability:
+1. IDENTIFY the equipment — its type, and the exact brand/manufacturer and model/series if any nameplate, logo, label, control panel or distinctive design is visible. Read any visible serial numbers, ratings, or compliance plates. State your confidence.
+2. Recall the manufacturer's user/operator manual and the applicable Australian standards (e.g. AS 4024 machine safety, AS/NZS 3000 electrical, AS 2359 powered trucks, AS 62841/60335 for tools/appliances) for THIS make & model, and note the key documented safety specifications (guarding, isolation, emergency stop, RCD/earthing, load ratings, service intervals).
+3. CROSS-REFERENCE the visible condition against those documented specs. Flag anything out of place, modified, damaged, missing guards, bypassed interlocks, exposed wiring, or otherwise outside the manufacturer's safe operating spec — noting the WARRANTY and INSURANCE implications of operating out of spec.
+4. DECIDE an outcome: "PASS" (safe to operate, within spec) or "HAZARD" (out of safety spec — must not be operated until rectified).""",
 }
+
+MACHINERY_SCHEMA = """
+For the "machinery" object, fill ALL of these sub-keys precisely:
+  "machinery": {
+    "machine_type": "type of device/plant/machine",
+    "brand": "manufacturer/brand or 'Unknown'",
+    "model": "model/series or 'Unknown'",
+    "identifiers": "any visible serial/rating/compliance-plate text or 'None visible'",
+    "identification_confidence": "High|Medium|Low",
+    "manual_reference": "the specific operator manual and/or AS standard(s) that apply to this make & model",
+    "guarding_status": "Adequate|Inadequate|Missing|Unknown",
+    "isolation_note": "LOTO / electrical isolation / e-stop observation",
+    "spec_checks": [
+      {"item": "what was checked (e.g. blade guard, RCD, e-stop, wiring, load rating)", "requirement": "what the manual/standard requires", "observed": "what is visible in the photo", "status": "Pass|Fail", "reference": "standard/manual clause"}
+    ],
+    "warranty_insurance_note": "impact on manufacturer warranty and site insurance if operated in the observed condition",
+    "compliance_note": "overall AS 4024 / electrical compliance note",
+    "outcome": "PASS|HAZARD"
+  }
+Also include a top-level "hazard_report" object (used only when outcome is HAZARD, otherwise null):
+  "hazard_report": {"title": "concise hazard title", "severity": "Low|Medium|High|Critical", "description": "what is unsafe, why, and the manual/standard breached", "immediate_actions": "what to do right now (isolate, tag out, remove from service)"}
+"""
 
 JSON_SCHEMA_INSTRUCTION = """
 Return ONLY a valid JSON object (no markdown, no commentary) with EXACTLY these keys:
@@ -212,11 +238,12 @@ Return ONLY a valid JSON object (no markdown, no commentary) with EXACTLY these 
     {"step": "task step description", "hazards": "hazards for this step", "controls": "controls to apply", "ppe": "required PPE"}
   ],
   "density": {"people_count": 0, "area_note": "estimated area / layout note", "density_rating": "Low|Medium|High|Critical", "recommendation": "action to take"},
-  "machinery": {"machine_type": "type", "guarding_status": "Adequate|Inadequate|Missing|Unknown", "isolation_note": "LOTO / isolation observation", "compliance_note": "AS 4024 note"},
+  "machinery": {"machine_type": "type", "brand": "", "model": "", "identifiers": "", "identification_confidence": "", "manual_reference": "", "guarding_status": "Adequate|Inadequate|Missing|Unknown", "isolation_note": "", "spec_checks": [], "warranty_insurance_note": "", "compliance_note": "", "outcome": "PASS|HAZARD"},
+  "hazard_report": null,
   "recommended_actions": ["action 1", "action 2"],
   "legislation_refs": ["WHS Act 2011 s...", "Code of Practice ..."]
 }
-For modes other than swms, "swms_steps" may be an empty array. For non-density modes "density" may be null. For non-machinery modes "machinery" may be null. Always fill "hazards", "overall_risk_level", "summary", "recommended_actions" and "legislation_refs".
+For modes other than swms, "swms_steps" may be an empty array. For non-density modes "density" may be null. For non-machinery modes "machinery" may be null and "hazard_report" null. Always fill "hazards", "overall_risk_level", "summary", "recommended_actions" and "legislation_refs".
 """
 
 
@@ -234,9 +261,11 @@ async def run_ai(mode: str, image_base64: Optional[str], title: str, location: s
     base_prompt = MODE_PROMPTS.get(mode, MODE_PROMPTS["risk"])
     context = f"\nContext provided by worker — Title: {title or 'N/A'}; Location: {location or 'N/A'}; Notes: {notes or 'N/A'}."
     full_prompt = base_prompt + context + "\n" + JSON_SCHEMA_INSTRUCTION
+    if mode == "machinery":
+        full_prompt += "\n" + MACHINERY_SCHEMA
 
     chat = LlmChat(api_key=EMERGENT_LLM_KEY, session_id=f"assess-{uuid.uuid4()}",
-                   system_message="You output only strict JSON. You are an expert Australian WHS professional.").with_model("gemini", AI_MODEL)
+                   system_message="You output only strict JSON. You are an expert Australian WHS professional and machinery safety engineer.").with_model("gemini", AI_MODEL)
 
     file_contents = []
     if image_base64:
@@ -254,7 +283,7 @@ async def run_ai(mode: str, image_base64: Optional[str], title: str, location: s
             "title": title or f"{mode.title()} Assessment",
             "summary": "AI could not produce a structured result. Please retake the photo with better lighting and framing.",
             "overall_risk_level": "Medium",
-            "hazards": [], "swms_steps": [], "density": None, "machinery": None,
+            "hazards": [], "swms_steps": [], "density": None, "machinery": None, "hazard_report": None,
             "recommended_actions": ["Retake photo", "Complete manual assessment"],
             "legislation_refs": ["WHS Act 2011"],
         }
@@ -360,6 +389,9 @@ async def ai_assess(body: AssessIn, user: dict = Depends(current_user)):
     if body.image_base64 and len(body.image_base64) > MAX_IMAGE_B64:
         raise HTTPException(413, "Image too large")
     result = await run_ai(body.mode, body.image_base64, body.title, body.location, body.notes)
+    if body.mode != "machinery" and isinstance(result, dict):
+        result["machinery"] = None
+        result["hazard_report"] = None
     photo_path = await _store_image_b64(user["id"], body.image_base64) if body.image_base64 else None
     doc = {
         "id": str(uuid.uuid4()), "user_id": user["id"], "user_name": user.get("name", ""),
@@ -371,7 +403,58 @@ async def ai_assess(body: AssessIn, user: dict = Depends(current_user)):
     }
     await db.assessments.insert_one(doc)
     doc.pop("_id", None)
+
+    # Machinery mode: log to Equipment Register and auto-raise a hazard report if out of spec.
+    if body.mode == "machinery":
+        m = (result.get("machinery") or {}) if isinstance(result.get("machinery"), dict) else {}
+        outcome = (m.get("outcome") or "").upper()
+        if outcome not in ("PASS", "HAZARD"):
+            outcome = "HAZARD" if str(result.get("overall_risk_level", "")).lower() in ("high", "critical") else "PASS"
+
+        equip = {
+            "id": str(uuid.uuid4()), "user_id": user["id"], "assessed_by": user.get("name", ""),
+            "assessment_id": doc["id"], "photo_path": photo_path,
+            "machine_type": m.get("machine_type", ""), "brand": m.get("brand", "Unknown"),
+            "model": m.get("model", "Unknown"), "identifiers": m.get("identifiers", ""),
+            "location": body.location, "outcome": outcome,
+            "manual_reference": m.get("manual_reference", ""),
+            "created_at": datetime.now(timezone.utc).isoformat(), "deleted_at": None,
+        }
+        await db.equipment.insert_one(equip)
+
+        hazard_incident_id = None
+        if outcome == "HAZARD":
+            hr = result.get("hazard_report") or {}
+            eq_name = " ".join([x for x in [m.get("brand"), m.get("model"), m.get("machine_type")] if x and x != "Unknown"]).strip() or "Machinery"
+            inc = {
+                "id": str(uuid.uuid4()),
+                "title": hr.get("title") or f"HAZARD: {eq_name} out of safety spec",
+                "category": "Hazard", "severity": hr.get("severity") or result.get("overall_risk_level", "High"),
+                "location": body.location,
+                "description": (hr.get("description") or result.get("summary", "")) +
+                               (f"\n\nImmediate actions: {hr.get('immediate_actions')}" if hr.get("immediate_actions") else "") +
+                               (f"\n\nWarranty/Insurance: {m.get('warranty_insurance_note')}" if m.get("warranty_insurance_note") else ""),
+                "photo_path": photo_path, "status": "open", "reported_by": user.get("name", ""),
+                "reported_by_id": user["id"], "source": "machinery-ai", "assessment_id": doc["id"],
+                "created_at": datetime.now(timezone.utc).isoformat(), "deleted_at": None,
+            }
+            await db.incidents.insert_one(inc)
+            hazard_incident_id = inc["id"]
+
+        doc["equipment_outcome"] = outcome
+        doc["hazard_incident_id"] = hazard_incident_id
+        await db.assessments.update_one({"id": doc["id"]},
+                                        {"$set": {"equipment_outcome": outcome, "hazard_incident_id": hazard_incident_id}})
+
     return doc
+
+
+@api.get("/equipment")
+async def list_equipment(user: dict = Depends(current_user)):
+    q = {"deleted_at": None}
+    if user.get("role") not in PRIVILEGED_ROLES:
+        q["user_id"] = user["id"]
+    return await db.equipment.find(q, {"_id": 0}).sort("created_at", -1).to_list(300)
 
 
 @api.get("/assessments")
@@ -558,6 +641,8 @@ async def dashboard(user: dict = Depends(current_user)):
     active_locks = await db.loto.count_documents({"status": "locked", "deleted_at": None})
     assessments_count = await db.assessments.count_documents({"deleted_at": None})
     traffic_zones = await db.traffic.count_documents({"deleted_at": None})
+    equipment_count = await db.equipment.count_documents({"deleted_at": None})
+    equipment_hazard = await db.equipment.count_documents({"outcome": "HAZARD", "deleted_at": None})
 
     # on-site count
     recs = await db.access.find({"type": {"$in": ["signin", "signout"]}}, {"_id": 0}).sort("created_at", 1).to_list(2000)
@@ -572,6 +657,8 @@ async def dashboard(user: dict = Depends(current_user)):
         "active_locks": active_locks,
         "assessments_count": assessments_count,
         "traffic_zones": traffic_zones,
+        "equipment_count": equipment_count,
+        "equipment_hazard": equipment_hazard,
         "on_site": on_site,
         "recent_assessments": recent,
     }

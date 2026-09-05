@@ -10,6 +10,7 @@ import {
   Warning,
   TrafficSign,
   FileText,
+  Gear,
   CaretRight,
 } from "phosphor-react-native";
 
@@ -48,6 +49,7 @@ export default function Home() {
 
   const modules = [
     { key: "assess", title: "AI Assess", desc: "Live risk, SWMS, density, machinery", icon: ScanSmiley, path: "/(tabs)/assess" },
+    { key: "equipment", title: "Equipment Register", desc: "AI-assessed plant & devices", icon: Gear, path: "/equipment" },
     { key: "loto", title: "LOTO Register", desc: "Lockout / tagout controls", icon: Lock, path: "/(tabs)/registers" },
     { key: "access", title: "Site Access", desc: "Sign in / out, inductions", icon: IdentificationBadge, path: "/(tabs)/access" },
     { key: "traffic", title: "Traffic Mgmt", desc: "Pedestrian & forklift zones", icon: TrafficSign, path: "/traffic" },
