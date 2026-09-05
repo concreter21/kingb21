@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import AgentChat from "./AgentChat";
 import InstallPrompt from "./InstallPrompt";
+import OfflineIndicator from "./OfflineIndicator";
 import {
   LayoutDashboard,
   ShieldAlert,
@@ -133,7 +134,8 @@ const DashboardLayout = ({ children, title, subtitle, action }) => {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <div className="hidden lg:flex items-center gap-2 h-9 px-3 bg-slate-100 rounded-lg w-[260px]">
+            <OfflineIndicator />
+            <div className="hidden lg:flex items-center gap-2 h-9 px-3 bg-slate-100 rounded-lg w-[220px]">
               <Search className="w-[14px] h-[14px] text-slate-400" />
               <input
                 className="bg-transparent border-none outline-none text-[13px] text-slate-800 placeholder:text-slate-400 flex-1"

@@ -6,6 +6,7 @@ import {
 import axios from "axios";
 import DashboardLayout from "./DashboardLayout";
 import { useToast } from "../../hooks/use-toast";
+import { cachedGet, queuedPost } from "../../lib/offline";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -56,8 +57,15 @@ const WatchHistoryPage = () => {
       if (site && site !== "All sites") params.site = site;
       if (severity) params.severity = severity;
       if (search.trim()) params.search = search.trim();
-      const res = await axios.get(`${API}/watch/history`, { params });
-      setAlerts(res.data);
+      const cacheKey = `watch_history_${site}_${severity}_${search.trim()}`;
+      const { data, offline } = await cachedGet(cacheKey, "/watch/history", { params });
+      setAlerts(data);
+      if (offline) {
+        toast({
+          title: "Offline mode",
+          description: "Showing cached alerts from your last online session.",
+        });
+      }
     } catch (err) {
       toast({
         title: "Failed to load history",
@@ -88,7 +96,7 @@ const WatchHistoryPage = () => {
   const fileAsHazard = async (alert) => {
     setFiling(alert.id);
     try {
-      const res = await axios.post(`${API}/hazards`, {
+      const result = await queuedPost("/hazards", {
         site: alert.site,
         hazard_type: alert.alert.length > 60 ? alert.alert.slice(0, 60) + "…" : alert.alert,
         severity: alert.severity,
@@ -99,12 +107,14 @@ const WatchHistoryPage = () => {
       });
       setAlerts((prev) =>
         prev.map((a) =>
-          a.id === alert.id ? { ...a, filed_as_hazard: true, hazard_id: res.data.id } : a
+          a.id === alert.id ? { ...a, filed_as_hazard: true, hazard_id: result.data?.id || "queued" } : a
         )
       );
       toast({
-        title: "Hazard filed",
-        description: `${res.data.hazard_type} recorded with snapshot.`,
+        title: result.queued ? "Queued for sync" : "Hazard filed",
+        description: result.queued
+          ? "You're offline — it will upload automatically once online."
+          : `${result.data.hazard_type} recorded with snapshot.`,
       });
     } catch (err) {
       toast({

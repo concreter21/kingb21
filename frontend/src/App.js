@@ -1,4 +1,5 @@
 import "./App.css";
+import { useEffect } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import LoginPage from "./components/LoginPage";
 import DashboardHome from "./components/dashboard/DashboardHome";
@@ -14,6 +15,12 @@ import CompliancePage from "./components/dashboard/CompliancePage";
 import { Toaster } from "./components/ui/toaster";
 
 function App() {
+  useEffect(() => {
+    if ("serviceWorker" in navigator && process.env.NODE_ENV === "production") {
+      navigator.serviceWorker.register("/service-worker.js").catch(() => {});
+    }
+  }, []);
+
   return (
     <div className="App">
       <BrowserRouter>
