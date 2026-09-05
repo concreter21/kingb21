@@ -34,10 +34,17 @@ mongo_url = os.environ["MONGO_URL"]
 client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ["DB_NAME"]]
 
-JWT_SECRET = os.environ.get("JWT_SECRET", "dev-secret-change-me")
+JWT_SECRET = os.environ["JWT_SECRET"]
 JWT_ALGO = "HS256"
 EMERGENT_LLM_KEY = os.environ.get("EMERGENT_LLM_KEY")
 AI_MODEL = "gemini-3.1-pro-preview"
+
+# Roles allowed to approve, override records, and view all safety data.
+PRIVILEGED_ROLES = ("Safety Officer", "Supervisor")
+VALID_ROLES = ("Worker", "Contractor", "Supervisor", "Safety Officer")
+# Company-shared code required to self-register into a privileged role.
+OFFICER_ACCESS_CODE = os.environ.get("OFFICER_ACCESS_CODE", "TK-SAFETY-2026")
+MAX_IMAGE_B64 = 12 * 1024 * 1024  # ~9MB decoded upload cap
 
 STORAGE_BASE = (os.environ.get("INTEGRATION_PROXY_URL") or "").strip() or "https://integrations.emergentagent.com"
 STORAGE_URL = STORAGE_BASE.rstrip("/") + "/objstore/api/v1/storage"
@@ -131,6 +138,7 @@ class RegisterIn(BaseModel):
     password: str = Field(min_length=6, max_length=128)
     name: str = ""
     role: str = "Worker"
+    access_code: str = ""
 
 
 class LoginIn(BaseModel):
@@ -265,8 +273,15 @@ async def register(body: RegisterIn):
     email = body.email.lower().strip()
     if await db.users.find_one({"email": email}):
         raise HTTPException(409, "Email already registered")
+
+    # Validate + gate role. Privileged roles require the company access code;
+    # never trust a self-declared privileged role.
+    role = body.role if body.role in VALID_ROLES else "Worker"
+    if role in PRIVILEGED_ROLES and body.access_code.strip() != OFFICER_ACCESS_CODE:
+        raise HTTPException(403, "A valid access code is required for Safety Officer / Supervisor accounts")
+
     user = {"id": str(uuid.uuid4()), "email": email, "name": body.name.strip() or email.split("@")[0],
-            "role": body.role, "password_hash": hash_pw(body.password),
+            "role": role, "password_hash": hash_pw(body.password),
             "created_at": datetime.now(timezone.utc).isoformat()}
     await db.users.insert_one(user)
     return {"token": make_token(user["id"]), "user": public_user(user)}
@@ -297,7 +312,21 @@ async def get_file(path: str, token: Optional[str] = Query(None), authorization:
         tok = token
     if not tok:
         raise HTTPException(401, "Not authenticated")
-    await user_from_token(tok)
+    user = await user_from_token(tok)
+
+    # Path traversal guard: only allow this app's namespaced object paths.
+    if ".." in path or path.startswith("/") or not path.startswith(f"{APP_NAME}/"):
+        raise HTTPException(400, "Invalid file path")
+
+    # Ownership / role check: caller must own a record referencing this file,
+    # or hold a privileged safety role (needs oversight access).
+    if user.get("role") not in PRIVILEGED_ROLES:
+        owns = await db.assessments.find_one({"photo_path": path, "user_id": user["id"], "deleted_at": None})
+        if not owns:
+            owns = await db.incidents.find_one({"photo_path": path, "reported_by_id": user["id"], "deleted_at": None})
+        if not owns:
+            raise HTTPException(403, "Not authorised to access this file")
+
     try:
         content, ctype = await run_in_threadpool(get_object, path)
     except Exception:
@@ -308,12 +337,16 @@ async def get_file(path: str, token: Optional[str] = Query(None), authorization:
 async def _store_image_b64(user_id: str, image_base64: str) -> Optional[str]:
     if not image_base64:
         return None
+    if len(image_base64) > MAX_IMAGE_B64:
+        raise HTTPException(413, "Image too large")
     try:
         clean = image_base64.split(",")[-1]
         data = base64.b64decode(clean)
         path = f"{APP_NAME}/uploads/{user_id}/{uuid.uuid4()}.jpg"
         await run_in_threadpool(put_object, path, data, "image/jpeg")
         return path
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"image store failed: {e}")
         return None
@@ -324,6 +357,8 @@ async def _store_image_b64(user_id: str, image_base64: str) -> Optional[str]:
 # ---------------------------------------------------------------------------
 @api.post("/ai/assess")
 async def ai_assess(body: AssessIn, user: dict = Depends(current_user)):
+    if body.image_base64 and len(body.image_base64) > MAX_IMAGE_B64:
+        raise HTTPException(413, "Image too large")
     result = await run_ai(body.mode, body.image_base64, body.title, body.location, body.notes)
     photo_path = await _store_image_b64(user["id"], body.image_base64) if body.image_base64 else None
     doc = {
@@ -341,7 +376,10 @@ async def ai_assess(body: AssessIn, user: dict = Depends(current_user)):
 
 @api.get("/assessments")
 async def list_assessments(user: dict = Depends(current_user), mode: Optional[str] = None):
-    q = {"user_id": user["id"], "deleted_at": None}
+    q = {"deleted_at": None}
+    # Workers see only their own; Safety Officers / Supervisors review all.
+    if user.get("role") not in PRIVILEGED_ROLES:
+        q["user_id"] = user["id"]
     if mode:
         q["mode"] = mode
     items = await db.assessments.find(q, {"_id": 0}).sort("created_at", -1).to_list(200)
@@ -350,7 +388,10 @@ async def list_assessments(user: dict = Depends(current_user), mode: Optional[st
 
 @api.get("/assessments/{aid}")
 async def get_assessment(aid: str, user: dict = Depends(current_user)):
-    doc = await db.assessments.find_one({"id": aid, "user_id": user["id"], "deleted_at": None}, {"_id": 0})
+    q = {"id": aid, "deleted_at": None}
+    if user.get("role") not in PRIVILEGED_ROLES:
+        q["user_id"] = user["id"]
+    doc = await db.assessments.find_one(q, {"_id": 0})
     if not doc:
         raise HTTPException(404, "Assessment not found")
     return doc
@@ -358,14 +399,20 @@ async def get_assessment(aid: str, user: dict = Depends(current_user)):
 
 @api.delete("/assessments/{aid}")
 async def delete_assessment(aid: str, user: dict = Depends(current_user)):
-    await db.assessments.update_one({"id": aid, "user_id": user["id"]},
+    q = {"id": aid}
+    if user.get("role") not in PRIVILEGED_ROLES:
+        q["user_id"] = user["id"]
+    doc = await db.assessments.find_one(q)
+    if not doc:
+        raise HTTPException(404, "Assessment not found")
+    await db.assessments.update_one({"id": aid},
                                     {"$set": {"deleted_at": datetime.now(timezone.utc).isoformat()}})
     return {"ok": True}
 
 
 @api.patch("/assessments/{aid}/approve")
 async def approve_assessment(aid: str, user: dict = Depends(current_user)):
-    if user.get("role") not in ("Safety Officer", "Supervisor"):
+    if user.get("role") not in PRIVILEGED_ROLES:
         raise HTTPException(403, "Only Safety Officers and Supervisors can approve assessments")
     doc = await db.assessments.find_one({"id": aid, "deleted_at": None})
     if not doc:
@@ -400,9 +447,15 @@ async def create_loto(body: LotoIn, user: dict = Depends(current_user)):
 
 @api.patch("/loto/{lid}")
 async def update_loto(lid: str, body: LotoUpdate, user: dict = Depends(current_user)):
+    if body.status not in ("locked", "released"):
+        raise HTTPException(422, "Invalid status")
     doc = await db.loto.find_one({"id": lid})
     if not doc:
         raise HTTPException(404, "Lock not found")
+    # WHS: only the worker who applied the lock, or an authorised safety role,
+    # may release/modify it.
+    if doc.get("applied_by_id") != user["id"] and user.get("role") not in PRIVILEGED_ROLES:
+        raise HTTPException(403, "Only the lock owner or a Safety Officer can change this lock")
     upd = {"status": body.status}
     if body.status == "released":
         upd["released_at"] = datetime.now(timezone.utc).isoformat()
@@ -484,6 +537,14 @@ async def create_incident(body: IncidentIn, user: dict = Depends(current_user)):
 
 @api.patch("/incidents/{iid}")
 async def update_incident(iid: str, status: str = Query(...), user: dict = Depends(current_user)):
+    if status not in ("open", "closed"):
+        raise HTTPException(422, "Invalid status")
+    doc = await db.incidents.find_one({"id": iid, "deleted_at": None})
+    if not doc:
+        raise HTTPException(404, "Incident not found")
+    # Only the reporter or an authorised safety role may change incident status.
+    if doc.get("reported_by_id") != user["id"] and user.get("role") not in PRIVILEGED_ROLES:
+        raise HTTPException(403, "Only the reporter or a Safety Officer can change this incident")
     await db.incidents.update_one({"id": iid}, {"$set": {"status": status}})
     return await db.incidents.find_one({"id": iid}, {"_id": 0})
 
@@ -518,7 +579,7 @@ async def dashboard(user: dict = Depends(current_user)):
 
 # ---------------------------------------------------------------------------
 app.include_router(api)
-app.add_middleware(CORSMiddleware, allow_credentials=True, allow_origins=["*"],
+app.add_middleware(CORSMiddleware, allow_credentials=False, allow_origins=["*"],
                    allow_methods=["*"], allow_headers=["*"])
 
 

@@ -22,8 +22,11 @@ export default function Register() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState("Worker");
+  const [accessCode, setAccessCode] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const isPrivileged = role === "Safety Officer" || role === "Supervisor";
 
   const onRegister = async () => {
     setError("");
@@ -35,9 +38,13 @@ export default function Register() {
       setError("Password must be at least 6 characters");
       return;
     }
+    if (isPrivileged && !accessCode) {
+      setError("An access code is required for Safety Officer / Supervisor accounts");
+      return;
+    }
     setLoading(true);
     try {
-      await register(email.trim(), password, name.trim(), role);
+      await register(email.trim(), password, name.trim(), role, accessCode.trim());
       router.replace("/(tabs)");
     } catch (e: any) {
       setError(e.message || "Registration failed");
@@ -91,6 +98,17 @@ export default function Register() {
               })}
             </View>
           </View>
+
+          {isPrivileged ? (
+            <Input
+              label="Access Code"
+              testID="register-access-code-input"
+              value={accessCode}
+              onChangeText={setAccessCode}
+              autoCapitalize="characters"
+              placeholder="Required for officer accounts"
+            />
+          ) : null}
 
           {error ? (
             <View style={s.errorBox} testID="register-error">
