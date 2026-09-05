@@ -95,7 +95,7 @@ const DashboardHome = () => {
 
   return (
     <DashboardLayout
-      title={`Welcome back, ${currentUser.name.split(" ")[0]}`}
+      title={`Welcome, ${currentUser.name.split(" ")[0]}`}
       subtitle={`${currentUser.company} · Today's safety brief`}
       action={
         <button

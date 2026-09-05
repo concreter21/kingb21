@@ -229,7 +229,14 @@ const ContactsPage = () => {
 
       {/* Office cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-        {filtered.length === 0 && (
+        {officeLocations.length === 0 && (
+          <div className="col-span-full bg-white border border-dashed border-slate-300 rounded-xl p-10 text-center">
+            <Building2 className="w-10 h-10 text-slate-300 mx-auto mb-3" />
+            <p className="text-[14px] font-semibold text-slate-800">No offices added yet</p>
+            <p className="text-[12px] text-slate-500 mt-1">Add your first office to see it here on the map and directory.</p>
+          </div>
+        )}
+        {filtered.length === 0 && officeLocations.length > 0 && (
           <div className="col-span-full text-center py-10 text-slate-500 text-[13px]">
             No offices match your search.
           </div>
@@ -285,7 +292,7 @@ const ContactsPage = () => {
 
       {/* Legal footer */}
       <div className="mt-8 pt-6 border-t border-slate-200 flex flex-wrap items-center justify-between gap-3 text-[11px] text-slate-500">
-        <div>© {new Date().getFullYear()} 1KOMMA5° · SolarSafe pro</div>
+        <div>© {new Date().getFullYear()} SolarSafe pro</div>
         <div className="flex items-center gap-4">
           <a href="#" onClick={(e) => { e.preventDefault(); toast({ title: "Privacy Policy" }); }} className="hover:text-slate-800">Privacy</a>
           <a href="#" onClick={(e) => { e.preventDefault(); toast({ title: "Terms of Service" }); }} className="hover:text-slate-800">Terms</a>

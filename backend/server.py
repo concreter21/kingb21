@@ -323,9 +323,7 @@ async def structure_voice_hazard(req: VoiceHazardRequest):
         "You extract structured hazard reports from spoken transcripts of solar-installation crew members. "
         "Respond ONLY with valid JSON: "
         '{"site": "...", "hazard_type": "...", "severity": "low|medium|high|critical", "description": "..."}. '
-        "The site is one of: Villa – Grunewald, Warehouse Array – Hamburg Hafen, "
-        "Commercial Roof – Siemensstadt, Residential – Prenzlauer Berg, School Rooftop – Munich Nord. "
-        "If a site was already provided, use it verbatim. "
+        "If a site was already provided, use it verbatim. Otherwise infer a short site name from context. "
         "Hazard type should be short (e.g. 'Exposed live conductor', 'Fall risk – unprotected edge'). "
         "Description should be 1-2 sentences summarising the situation."
     )
@@ -354,14 +352,14 @@ async def structure_voice_hazard(req: VoiceHazardRequest):
         if sev not in ("low", "medium", "high", "critical"):
             sev = "medium"
         return VoiceHazardResponse(
-            site=data.get("site") or req.site or "Villa – Grunewald",
+            site=data.get("site") or req.site or "Unspecified site",
             hazard_type=data.get("hazard_type", "Uncategorised"),
             severity=sev,
             description=data.get("description", req.transcript[:200]),
         )
     except Exception:
         return VoiceHazardResponse(
-            site=req.site or "Villa – Grunewald",
+            site=req.site or "Unspecified site",
             hazard_type="Voice report",
             severity="medium",
             description=req.transcript[:400],
@@ -599,6 +597,24 @@ async def list_hazards(limit: int = 100):
     cursor = db.hazards.find().sort("timestamp", -1).limit(max(1, min(500, limit)))
     docs = await cursor.to_list(500)
     return [_doc_to_hazard(d) for d in docs]
+
+
+@api_router.delete("/hazards/{hazard_id}")
+async def delete_hazard(hazard_id: str):
+    result = await db.hazards.delete_one({"id": hazard_id})
+    return {"deleted": result.deleted_count}
+
+
+@api_router.delete("/hazards")
+async def clear_hazards():
+    result = await db.hazards.delete_many({})
+    return {"deleted": result.deleted_count}
+
+
+@api_router.delete("/watch/history/{alert_id}")
+async def delete_watch_alert(alert_id: str):
+    result = await db.watch_alerts.delete_one({"id": alert_id})
+    return {"deleted": result.deleted_count}
 
 
 app.include_router(api_router)

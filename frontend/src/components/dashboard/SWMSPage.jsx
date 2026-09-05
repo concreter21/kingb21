@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { FileText, Plus, Search, Download, CheckCircle2, Clock, FileEdit, Sparkles, HardHat, ShieldAlert, ListChecks, X, FileDown } from "lucide-react";
+import { FileText, Plus, Search, Download, CheckCircle2, Clock, FileEdit, Sparkles, HardHat, ShieldAlert, ListChecks, X, FileDown, Trash2 } from "lucide-react";
 import axios from "axios";
 import DashboardLayout from "./DashboardLayout";
 import { swmsList } from "../../mock";
@@ -15,19 +15,19 @@ const statusMeta = {
 };
 
 const siteOptions = [
-  "Villa – Grunewald",
-  "Commercial Roof – Siemensstadt",
-  "Warehouse Array – Hamburg Hafen",
-  "Residential – Prenzlauer Berg",
-  "School Rooftop – Munich Nord",
+  "Site A – Residential",
+  "Site B – Commercial Rooftop",
+  "Site C – Warehouse Array",
+  "Site D – Villa",
+  "Site E – School Rooftop",
 ];
 
 const jobOptions = [
-  "Rooftop PV Installation – 8kW Domestic",
-  "Commercial Array Mounting – 150kW",
-  "Battery Storage Wiring – LFP 12.4kWh",
-  "Warehouse Ballasted Array – 400kW",
-  "Inverter Commissioning – Fronius Symo",
+  "Rooftop PV Installation",
+  "Commercial Array Mounting",
+  "Battery Storage Wiring",
+  "Warehouse Ballasted Array",
+  "Inverter Commissioning",
 ];
 
 const SWMSPage = () => {
@@ -41,17 +41,31 @@ const SWMSPage = () => {
   const [aiResult, setAiResult] = useState(null);
   const [aiError, setAiError] = useState("");
   const [model, setModel] = useState("openai");
+  const [items, setItems] = useState(swmsList);
   const { toast } = useToast();
 
-  const filtered = swmsList
+  const filtered = items
     .filter((s) => (filter === "all" ? true : s.status === filter))
     .filter((s) => s.title.toLowerCase().includes(query.toLowerCase()) || s.id.toLowerCase().includes(query.toLowerCase()));
 
   const counts = {
-    all: swmsList.length,
-    approved: swmsList.filter((s) => s.status === "approved").length,
-    pending: swmsList.filter((s) => s.status === "pending").length,
-    draft: swmsList.filter((s) => s.status === "draft").length,
+    all: items.length,
+    approved: items.filter((s) => s.status === "approved").length,
+    pending: items.filter((s) => s.status === "pending").length,
+    draft: items.filter((s) => s.status === "draft").length,
+  };
+
+  const removeItem = (id) => {
+    if (!window.confirm("Delete this SWMS from your library?")) return;
+    setItems((prev) => prev.filter((s) => s.id !== id));
+    toast({ title: "SWMS deleted" });
+  };
+
+  const clearAll = () => {
+    if (items.length === 0) return;
+    if (!window.confirm(`Delete all ${items.length} SWMS entries?`)) return;
+    setItems([]);
+    toast({ title: "All SWMS cleared" });
   };
 
   const openModal = () => {
@@ -111,13 +125,24 @@ const SWMSPage = () => {
       title="Safe Work Method Statements"
       subtitle="AI-assisted SWMS generation & approval workflow"
       action={
-        <button
-          onClick={openModal}
-          className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-[13px] font-medium transition-colors"
-        >
-          <Sparkles className="w-[14px] h-[14px]" />
-          Generate with AI
-        </button>
+        <div className="flex items-center gap-2">
+          {items.length > 0 && (
+            <button
+              onClick={clearAll}
+              className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg bg-white border border-slate-200 hover:border-rose-300 hover:text-rose-600 text-slate-600 text-[13px] font-medium transition-colors"
+            >
+              <Trash2 className="w-[14px] h-[14px]" />
+              Clear All
+            </button>
+          )}
+          <button
+            onClick={openModal}
+            className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-[13px] font-medium transition-colors"
+          >
+            <Sparkles className="w-[14px] h-[14px]" />
+            Generate with AI
+          </button>
+        </div>
       }
     >
       {/* Filter tabs */}
@@ -186,7 +211,7 @@ const SWMSPage = () => {
                 </span>
               </div>
               <div className="text-[11px] text-slate-500">{swms.updated}</div>
-              <div className="flex justify-end">
+              <div className="flex justify-end gap-1">
                 <button
                   onClick={() => {
                     try {
@@ -196,25 +221,10 @@ const SWMSPage = () => {
                         notes: "",
                         author: swms.author,
                         aiResult: {
-                          summary: `${swms.title} for site ${swms.site}. This SWMS covers standard safety controls, hazard mitigation and required PPE for the scope of work.`,
-                          hazards: [
-                            "Working at heights on pitched/flat roof surfaces",
-                            "Electrical shock from live DC & AC circuits",
-                            "Manual handling of PV modules and inverters",
-                            "Weather exposure – UV, heat stress, wind gusts",
-                            "Falling tools/objects to persons below",
-                          ],
-                          controls: [
-                            "Erect edge protection or use certified fall-arrest harness with rated anchor points",
-                            "Isolate and lock out DC & AC circuits; verify dead with tested meter before touching",
-                            "Two-person lift for modules above 20kg; use mechanical lift for roof-top delivery",
-                            "Monitor forecast; stop work above wind speeds of 40 km/h or during storms",
-                            "Establish exclusion zone below work area with cones and signage",
-                          ],
-                          ppe: [
-                            "Hard hat", "Safety glasses (UV)", "Insulated gloves (Class 0)",
-                            "Non-slip safety boots", "Hi-vis vest", "Fall-arrest harness",
-                          ],
+                          summary: `${swms.title} for site ${swms.site}. Review before use.`,
+                          hazards: ["Working at heights", "Electrical shock", "Manual handling", "Weather exposure"],
+                          controls: ["Fall-arrest harness with rated anchor", "Isolate & lock out DC before work", "Two-person lift for modules", "Monitor weather; stop above 40km/h wind"],
+                          ppe: ["Hard hat", "Safety glasses", "Insulated gloves", "Safety boots", "Hi-vis vest"],
                         },
                       });
                       toast({ title: "PDF exported", description: `${ref} downloaded.` });
@@ -226,6 +236,13 @@ const SWMSPage = () => {
                   title="Download PDF"
                 >
                   <Download className="w-[14px] h-[14px]" />
+                </button>
+                <button
+                  onClick={() => removeItem(swms.id)}
+                  className="p-1.5 rounded hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition-colors"
+                  title="Delete"
+                >
+                  <Trash2 className="w-[14px] h-[14px]" />
                 </button>
               </div>
             </div>

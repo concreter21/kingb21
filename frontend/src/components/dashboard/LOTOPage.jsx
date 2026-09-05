@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Lock, Unlock, Plus, KeyRound } from "lucide-react";
+import { Lock, Unlock, Plus, KeyRound, Trash2 } from "lucide-react";
 import DashboardLayout from "./DashboardLayout";
 import { lotoLogs } from "../../mock";
 import { useToast } from "../../hooks/use-toast";
@@ -23,18 +23,42 @@ const LOTOPage = () => {
 
   const lockedCount = logs.filter((l) => l.status === "locked").length;
 
+  const removeLog = (id) => {
+    if (!window.confirm("Delete this LOTO record?")) return;
+    setLogs((prev) => prev.filter((l) => l.id !== id));
+    toast({ title: "LOTO record deleted" });
+  };
+
+  const clearAll = () => {
+    if (logs.length === 0) return;
+    if (!window.confirm(`Delete all ${logs.length} LOTO records?`)) return;
+    setLogs([]);
+    toast({ title: "All LOTO records cleared" });
+  };
+
   return (
     <DashboardLayout
       title="Lockout / Tagout"
       subtitle="Isolation register & tag control"
       action={
-        <button
-          onClick={() => toast({ title: "New tag issued", description: "Blank tag ready for on-site scan." })}
-          className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-[13px] font-medium transition-colors"
-        >
-          <Plus className="w-[14px] h-[14px]" />
-          Issue Tag
-        </button>
+        <div className="flex items-center gap-2">
+          {logs.length > 0 && (
+            <button
+              onClick={clearAll}
+              className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg bg-white border border-slate-200 hover:border-rose-300 hover:text-rose-600 text-slate-600 text-[13px] font-medium transition-colors"
+            >
+              <Trash2 className="w-[14px] h-[14px]" />
+              Clear All
+            </button>
+          )}
+          <button
+            onClick={() => toast({ title: "New tag issued", description: "Blank tag ready for on-site scan." })}
+            className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-[13px] font-medium transition-colors"
+          >
+            <Plus className="w-[14px] h-[14px]" />
+            Issue Tag
+          </button>
+        </div>
       }
     >
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-6">
@@ -90,7 +114,7 @@ const LOTOPage = () => {
             <div className="text-[12px] text-slate-600 truncate">{log.site}</div>
             <div className="text-[12px] text-slate-700">{log.by}</div>
             <div className="text-[11px] text-slate-500">{log.time}</div>
-            <div className="flex justify-start md:justify-end">
+            <div className="flex justify-start md:justify-end gap-1">
               <button
                 onClick={() => toggleStatus(log.id)}
                 className={`h-8 px-3 rounded-lg text-[11px] font-medium transition-colors ${
@@ -100,6 +124,13 @@ const LOTOPage = () => {
                 }`}
               >
                 {log.status === "locked" ? "Release" : "Re-lock"}
+              </button>
+              <button
+                onClick={() => removeLog(log.id)}
+                className="w-8 h-8 rounded-lg hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition-colors flex items-center justify-center"
+                title="Delete"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
               </button>
             </div>
           </div>

@@ -24,7 +24,7 @@ const statusMeta = {
 const HazardsPage = () => {
   const [showForm, setShowForm] = useState(false);
   const [severity, setSeverity] = useState("medium");
-  const [site, setSite] = useState("Villa – Grunewald");
+  const [site, setSite] = useState("Site A – Residential");
   const [type, setType] = useState("");
   const [description, setDescription] = useState("");
   const [photos, setPhotos] = useState([]);
@@ -166,18 +166,42 @@ const HazardsPage = () => {
     });
   };
 
+  const removeHazard = (id) => {
+    if (!window.confirm("Delete this hazard from your records?")) return;
+    setHazards((prev) => prev.filter((h) => h.id !== id));
+    toast({ title: "Hazard deleted" });
+  };
+
+  const clearAllHazards = () => {
+    if (hazards.length === 0) return;
+    if (!window.confirm(`Delete all ${hazards.length} hazards?`)) return;
+    setHazards([]);
+    toast({ title: "All hazards cleared" });
+  };
+
   return (
     <DashboardLayout
       title="Hazard Reporting"
       subtitle="Real-time hazard capture from the field"
       action={
-        <button
-          onClick={openModal}
-          className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-[13px] font-medium transition-colors"
-        >
-          <Plus className="w-[14px] h-[14px]" />
-          Report Hazard
-        </button>
+        <div className="flex items-center gap-2">
+          {hazards.length > 0 && (
+            <button
+              onClick={clearAllHazards}
+              className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg bg-white border border-slate-200 hover:border-rose-300 hover:text-rose-600 text-slate-600 text-[13px] font-medium transition-colors"
+            >
+              <Trash2 className="w-[14px] h-[14px]" />
+              Clear All
+            </button>
+          )}
+          <button
+            onClick={openModal}
+            className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-[13px] font-medium transition-colors"
+          >
+            <Plus className="w-[14px] h-[14px]" />
+            Report Hazard
+          </button>
+        </div>
       }
     >
       {/* Summary strip */}
@@ -253,6 +277,13 @@ const HazardsPage = () => {
                 <StatusIcon className="w-3 h-3" />
                 {meta.label}
               </span>
+              <button
+                onClick={() => removeHazard(h.id)}
+                className="p-1.5 rounded hover:bg-rose-50 text-slate-300 hover:text-rose-600 transition-colors flex-shrink-0"
+                title="Delete hazard"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
             </div>
           );
         })}
@@ -335,11 +366,11 @@ const HazardsPage = () => {
                   onChange={(e) => setSite(e.target.value)}
                   className="w-full h-10 px-3 border border-slate-200 rounded-lg text-[13px] bg-white outline-none focus:border-slate-400"
                 >
-                  <option>Villa – Grunewald</option>
-                  <option>Warehouse Array – Hamburg Hafen</option>
-                  <option>Commercial Roof – Siemensstadt</option>
-                  <option>Residential – Prenzlauer Berg</option>
-                  <option>School Rooftop – Munich Nord</option>
+                  <option>Site A – Residential</option>
+                  <option>Site B – Commercial Rooftop</option>
+                  <option>Site C – Warehouse Array</option>
+                  <option>Site D – Villa</option>
+                  <option>Site E – School Rooftop</option>
                 </select>
               </div>
               <div>

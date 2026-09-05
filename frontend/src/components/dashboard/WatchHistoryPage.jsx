@@ -19,11 +19,11 @@ const severityColors = {
 
 const siteOptions = [
   "All sites",
-  "Villa – Grunewald",
-  "Commercial Roof – Siemensstadt",
-  "Warehouse Array – Hamburg Hafen",
-  "Residential – Prenzlauer Berg",
-  "School Rooftop – Munich Nord",
+  "Site A – Residential",
+  "Site B – Commercial Rooftop",
+  "Site C – Warehouse Array",
+  "Site D – Villa",
+  "Site E – School Rooftop",
 ];
 
 const formatDay = (iso) => {
@@ -90,6 +90,17 @@ const WatchHistoryPage = () => {
       toast({ title: "History cleared" });
     } catch (err) {
       toast({ title: "Clear failed", description: err.message, variant: "destructive" });
+    }
+  };
+
+  const deleteAlert = async (id) => {
+    if (!window.confirm("Delete this alert from history?")) return;
+    try {
+      await axios.delete(`${API}/watch/history/${id}`);
+      setAlerts((prev) => prev.filter((a) => a.id !== id));
+      toast({ title: "Alert deleted" });
+    } catch (err) {
+      toast({ title: "Delete failed", description: err.message, variant: "destructive" });
     }
   };
 
@@ -305,7 +316,7 @@ const WatchHistoryPage = () => {
                             )}
                           </div>
 
-                          <div className="flex-shrink-0">
+                          <div className="flex-shrink-0 flex items-center gap-1">
                             {a.filed_as_hazard ? (
                               <span className="inline-flex items-center gap-1 h-8 px-3 rounded-lg text-[11px] font-medium text-emerald-700 bg-emerald-50 border border-emerald-200">
                                 <CheckCircle2 className="w-3.5 h-3.5" /> Filed
@@ -323,6 +334,13 @@ const WatchHistoryPage = () => {
                                 )}
                               </button>
                             )}
+                            <button
+                              onClick={() => deleteAlert(a.id)}
+                              className="w-8 h-8 rounded-lg hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition-colors flex items-center justify-center"
+                              title="Delete"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
                           </div>
                         </div>
                       </div>

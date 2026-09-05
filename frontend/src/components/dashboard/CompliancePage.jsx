@@ -1,7 +1,7 @@
-import React from "react";
-import { ClipboardCheck, Upload, FileText, CheckCircle2, AlertTriangle, XCircle, Download } from "lucide-react";
+import React, { useState } from "react";
+import { ClipboardCheck, Upload, FileText, CheckCircle2, AlertTriangle, XCircle, Download, Trash2 } from "lucide-react";
 import DashboardLayout from "./DashboardLayout";
-import { complianceDocs } from "../../mock";
+import { complianceDocs as initialDocs } from "../../mock";
 import { useToast } from "../../hooks/use-toast";
 
 const statusStyles = {
@@ -12,25 +12,50 @@ const statusStyles = {
 
 const CompliancePage = () => {
   const { toast } = useToast();
+  const [docs, setDocs] = useState(initialDocs);
 
-  const total = complianceDocs.length;
-  const valid = complianceDocs.filter((d) => d.status === "valid").length;
-  const expiring = complianceDocs.filter((d) => d.status === "expiring").length;
-  const expired = complianceDocs.filter((d) => d.status === "expired").length;
-  const rate = Math.round((valid / total) * 100);
+  const total = docs.length || 1;
+  const valid = docs.filter((d) => d.status === "valid").length;
+  const expiring = docs.filter((d) => d.status === "expiring").length;
+  const expired = docs.filter((d) => d.status === "expired").length;
+  const rate = docs.length === 0 ? 0 : Math.round((valid / total) * 100);
+
+  const removeDoc = (id) => {
+    if (!window.confirm("Delete this document?")) return;
+    setDocs((prev) => prev.filter((d) => d.id !== id));
+    toast({ title: "Document deleted" });
+  };
+
+  const clearAll = () => {
+    if (docs.length === 0) return;
+    if (!window.confirm(`Delete all ${docs.length} documents?`)) return;
+    setDocs([]);
+    toast({ title: "All documents cleared" });
+  };
 
   return (
     <DashboardLayout
       title="Compliance Documentation"
       subtitle="Certificates, training records & audit trail"
       action={
-        <button
-          onClick={() => toast({ title: "Upload started", description: "Drop your PDF to attach it (demo)." })}
-          className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-[13px] font-medium transition-colors"
-        >
-          <Upload className="w-[14px] h-[14px]" />
-          Upload Document
-        </button>
+        <div className="flex items-center gap-2">
+          {docs.length > 0 && (
+            <button
+              onClick={clearAll}
+              className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg bg-white border border-slate-200 hover:border-rose-300 hover:text-rose-600 text-slate-600 text-[13px] font-medium transition-colors"
+            >
+              <Trash2 className="w-[14px] h-[14px]" />
+              Clear All
+            </button>
+          )}
+          <button
+            onClick={() => toast({ title: "Upload started", description: "Drop your PDF to attach it (demo)." })}
+            className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-[13px] font-medium transition-colors"
+          >
+            <Upload className="w-[14px] h-[14px]" />
+            Upload Document
+          </button>
+        </div>
       }
     >
       {/* Header stats */}
@@ -79,13 +104,13 @@ const CompliancePage = () => {
           <div>Expires</div>
           <div></div>
         </div>
-        {complianceDocs.map((doc) => {
+        {docs.map((doc) => {
           const meta = statusStyles[doc.status];
           const StatusIcon = meta.icon;
           return (
             <div
               key={doc.id}
-              className="grid grid-cols-1 md:grid-cols-[100px_1.5fr_1fr_120px_120px_120px_60px] gap-2 md:gap-4 px-5 py-3.5 border-b border-slate-100 last:border-0 hover:bg-slate-50 transition-colors items-center"
+              className="grid grid-cols-1 md:grid-cols-[100px_1.5fr_1fr_120px_120px_120px_80px] gap-2 md:gap-4 px-5 py-3.5 border-b border-slate-100 last:border-0 hover:bg-slate-50 transition-colors items-center"
             >
               <div className="text-[12px] font-mono font-semibold text-slate-900">{doc.id}</div>
               <div className="flex items-center gap-2">
@@ -101,17 +126,29 @@ const CompliancePage = () => {
                 </span>
               </div>
               <div className="text-[11px] text-slate-500 font-mono">{doc.expires}</div>
-              <div className="flex justify-end">
+              <div className="flex justify-end gap-1">
                 <button
                   onClick={() => toast({ title: "Downloaded", description: `${doc.id} exported.` })}
                   className="p-1.5 rounded hover:bg-slate-200 text-slate-500 hover:text-slate-800 transition-colors"
                 >
                   <Download className="w-[14px] h-[14px]" />
                 </button>
+                <button
+                  onClick={() => removeDoc(doc.id)}
+                  className="p-1.5 rounded hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition-colors"
+                  title="Delete"
+                >
+                  <Trash2 className="w-[14px] h-[14px]" />
+                </button>
               </div>
             </div>
           );
         })}
+        {docs.length === 0 && (
+          <div className="p-10 text-center text-[13px] text-slate-500">
+            No documents yet. Upload your first compliance record.
+          </div>
+        )}
       </div>
     </DashboardLayout>
   );

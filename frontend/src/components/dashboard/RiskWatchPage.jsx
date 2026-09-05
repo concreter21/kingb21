@@ -10,11 +10,11 @@ import { useToast } from "../../hooks/use-toast";
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 const siteOptions = [
-  "Villa – Grunewald",
-  "Commercial Roof – Siemensstadt",
-  "Warehouse Array – Hamburg Hafen",
-  "Residential – Prenzlauer Berg",
-  "School Rooftop – Munich Nord",
+  "Site A – Residential",
+  "Site B – Commercial Rooftop",
+  "Site C – Warehouse Array",
+  "Site D – Villa",
+  "Site E – School Rooftop",
 ];
 
 const jobOptions = [

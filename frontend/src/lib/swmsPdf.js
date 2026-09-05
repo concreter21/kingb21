@@ -24,7 +24,7 @@ const drawHeader = (doc, meta) => {
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
   doc.setTextColor(100, 116, 139);
-  doc.text("1Komma5° SolarSafe pro · Confidential", 32, 30);
+  doc.text("SolarSafe pro · Confidential", 32, 30);
 
   // Meta box (top-right)
   doc.setFontSize(8);
@@ -159,7 +159,7 @@ const drawFooter = (doc) => {
     doc.setFontSize(8);
     doc.setTextColor(148, 163, 184);
     doc.text(
-      "1Komma5° SolarSafe pro · Auto-generated with AI · Review before use",
+      "SolarSafe pro · Auto-generated with AI · Review before use",
       15,
       pageHeight - 8
     );

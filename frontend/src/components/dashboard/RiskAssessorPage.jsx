@@ -12,19 +12,19 @@ import { exportSWMSPdf } from "../../lib/swmsPdf";
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 const siteOptions = [
-  "Villa – Grunewald",
-  "Commercial Roof – Siemensstadt",
-  "Warehouse Array – Hamburg Hafen",
-  "Residential – Prenzlauer Berg",
-  "School Rooftop – Munich Nord",
+  "Site A – Residential",
+  "Site B – Commercial Rooftop",
+  "Site C – Warehouse Array",
+  "Site D – Villa",
+  "Site E – School Rooftop",
 ];
 
 const jobOptions = [
-  "Rooftop PV Installation – 8kW Domestic",
-  "Commercial Array Mounting – 150kW",
-  "Battery Storage Wiring – LFP 12.4kWh",
-  "Warehouse Ballasted Array – 400kW",
-  "Inverter Commissioning – Fronius Symo",
+  "Rooftop PV Installation",
+  "Commercial Array Mounting",
+  "Battery Storage Wiring",
+  "Warehouse Ballasted Array",
+  "Inverter Commissioning",
 ];
 
 const riskColors = {

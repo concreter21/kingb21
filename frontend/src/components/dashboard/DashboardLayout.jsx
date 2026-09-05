@@ -62,7 +62,7 @@ const DashboardLayout = ({ children, title, subtitle, action }) => {
           </div>
           <div className="leading-tight flex-1">
             <div className="text-[13px] font-semibold text-slate-900">SolarSafe pro</div>
-            <div className="text-[10px] text-slate-500">1KOMMA5° · Safety</div>
+            <div className="text-[10px] text-slate-500">Safety Platform</div>
           </div>
           <button
             onClick={() => setMobileOpen(false)}
