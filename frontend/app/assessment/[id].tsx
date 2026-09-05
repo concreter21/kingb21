@@ -2,15 +2,16 @@ import React, { useState, useEffect } from "react";
 import { View, Text, ScrollView, Pressable, ActivityIndicator } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Image } from "expo-image";
 import * as Haptics from "expo-haptics";
-import { CaretLeft, FilePdf, CheckCircle } from "phosphor-react-native";
+import { CaretLeft, FilePdf, CheckCircle, SealCheck, Clock } from "phosphor-react-native";
 
 import { makeStyles, fonts, useTheme } from "@/src/theme";
 import { RiskBadge, SectionLabel } from "@/src/components/ui";
 import { api, fileUrl } from "@/src/api";
 import { exportPdf } from "@/src/pdf";
+import { useAuth } from "@/src/auth";
 
 const MODE_NAMES: Record<string, string> = {
   risk: "LIVE RISK ASSESSMENT",
@@ -25,10 +26,22 @@ export default function AssessmentDetail() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
+  const { user } = useAuth();
+  const qc = useQueryClient();
   const [photoUri, setPhotoUri] = useState("");
   const [exporting, setExporting] = useState(false);
 
   const { data: a, isLoading } = useQuery({ queryKey: ["assessment", id], queryFn: () => api.get(`/assessments/${id}`) });
+
+  const approve = useMutation({
+    mutationFn: () => api.patch(`/assessments/${id}/approve`),
+    onSuccess: () => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      qc.invalidateQueries({ queryKey: ["assessment", id] });
+      qc.invalidateQueries({ queryKey: ["assessments"] });
+      qc.invalidateQueries({ queryKey: ["dashboard"] });
+    },
+  });
 
   useEffect(() => {
     if (a?.photo_path) fileUrl(a.photo_path).then(setPhotoUri);
@@ -56,6 +69,8 @@ export default function AssessmentDetail() {
   }
 
   const r = a.result || {};
+  const approved = a.status === "approved";
+  const canApprove = !approved && (user?.role === "Safety Officer" || user?.role === "Supervisor");
 
   return (
     <View style={s.container}>
@@ -84,6 +99,37 @@ export default function AssessmentDetail() {
           <View style={s.summaryBox}>
             <Text style={s.summaryText}>{r.summary}</Text>
           </View>
+
+          {/* Sign-off status */}
+          <View style={[s.signoffBox, approved ? s.signoffApproved : s.signoffDraft]}>
+            {approved ? (
+              <SealCheck size={22} color={colors.onSuccess} weight="fill" />
+            ) : (
+              <Clock size={22} color={colors.onWarning} weight="fill" />
+            )}
+            <View style={{ flex: 1 }}>
+              <Text style={[s.signoffTitle, { color: approved ? colors.onSuccess : colors.onWarning }]}>
+                {approved ? "APPROVED & FINALISED" : "DRAFT — PENDING SIGN-OFF"}
+              </Text>
+              <Text style={[s.signoffMeta, { color: approved ? colors.onSuccess : colors.onWarning }]}>
+                {approved
+                  ? `${a.approved_by} (${a.approved_by_role}) · ${new Date(a.approved_at).toLocaleString("en-AU")}`
+                  : "A Safety Officer or Supervisor must review before use"}
+              </Text>
+            </View>
+          </View>
+          {canApprove ? (
+            <Pressable style={s.approveBtn} onPress={() => approve.mutate()} disabled={approve.isPending} testID="approve-assessment">
+              {approve.isPending ? (
+                <ActivityIndicator color={colors.onSuccess} />
+              ) : (
+                <>
+                  <SealCheck size={20} color={colors.onSuccess} weight="bold" />
+                  <Text style={s.approveText}>APPROVE & FINALISE</Text>
+                </>
+              )}
+            </Pressable>
+          ) : null}
 
           {/* Hazards */}
           {(r.hazards || []).length > 0 && (
@@ -212,6 +258,13 @@ const useStyles = makeStyles((c) => ({
   overallLabel: { fontFamily: fonts.monoBold, fontSize: 13, color: c.onSurface, letterSpacing: 1 },
   summaryBox: { marginTop: 16, backgroundColor: c.surfaceSecondary, padding: 14, borderLeftWidth: 4, borderLeftColor: c.borderStrong },
   summaryText: { fontFamily: fonts.body, fontSize: 14, color: c.onSurfaceSecondary, lineHeight: 21 },
+  signoffBox: { flexDirection: "row", alignItems: "center", gap: 12, padding: 14, marginTop: 16 },
+  signoffApproved: { backgroundColor: c.success },
+  signoffDraft: { backgroundColor: c.warning },
+  signoffTitle: { fontFamily: fonts.monoBold, fontSize: 13, letterSpacing: 1 },
+  signoffMeta: { fontFamily: fonts.body, fontSize: 12, marginTop: 2, opacity: 0.9 },
+  approveBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, minHeight: 52, marginTop: 12, backgroundColor: c.brandPrimary, borderWidth: 2, borderColor: c.success },
+  approveText: { fontFamily: fonts.bodySemi, fontSize: 15, color: c.onSuccess, letterSpacing: 0.5 },
   sectionHead: { marginTop: 28, marginBottom: 12 },
   hazardCard: { borderWidth: 2, borderColor: c.borderStrong, padding: 14, marginBottom: 12 },
   hazardTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 },

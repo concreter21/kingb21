@@ -331,6 +331,7 @@ async def ai_assess(body: AssessIn, user: dict = Depends(current_user)):
         "mode": body.mode, "title": result.get("title") or body.title or f"{body.mode.title()} Assessment",
         "location": body.location, "notes": body.notes, "photo_path": photo_path,
         "result": result, "created_at": datetime.now(timezone.utc).isoformat(),
+        "status": "draft", "approved_by": None, "approved_by_role": None, "approved_at": None,
         "deleted_at": None,
     }
     await db.assessments.insert_one(doc)
@@ -360,6 +361,22 @@ async def delete_assessment(aid: str, user: dict = Depends(current_user)):
     await db.assessments.update_one({"id": aid, "user_id": user["id"]},
                                     {"$set": {"deleted_at": datetime.now(timezone.utc).isoformat()}})
     return {"ok": True}
+
+
+@api.patch("/assessments/{aid}/approve")
+async def approve_assessment(aid: str, user: dict = Depends(current_user)):
+    if user.get("role") not in ("Safety Officer", "Supervisor"):
+        raise HTTPException(403, "Only Safety Officers and Supervisors can approve assessments")
+    doc = await db.assessments.find_one({"id": aid, "deleted_at": None})
+    if not doc:
+        raise HTTPException(404, "Assessment not found")
+    await db.assessments.update_one({"id": aid}, {"$set": {
+        "status": "approved",
+        "approved_by": user.get("name", ""),
+        "approved_by_role": user.get("role", ""),
+        "approved_at": datetime.now(timezone.utc).isoformat(),
+    }})
+    return await db.assessments.find_one({"id": aid}, {"_id": 0})
 
 
 # ---------------------------------------------------------------------------

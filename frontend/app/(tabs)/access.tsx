@@ -1,16 +1,19 @@
 import React, { useState } from "react";
-import { View, Text, FlatList, Pressable, Modal, ActivityIndicator } from "react-native";
+import { View, Text, FlatList, Pressable, Modal, ActivityIndicator, Linking } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { CameraView, useCameraPermissions } from "expo-camera";
+import QRCode from "react-native-qrcode-svg";
 import * as Haptics from "expo-haptics";
-import { SignIn, SignOut, UserPlus, X, IdentificationBadge } from "phosphor-react-native";
+import { SignIn, SignOut, UserPlus, X, IdentificationBadge, QrCode } from "phosphor-react-native";
 
 import { makeStyles, fonts, useTheme } from "@/src/theme";
 import { Button, Input, StatusBadge } from "@/src/components/ui";
 import { api } from "@/src/api";
 
 const TYPE_LABEL: Record<string, string> = { signin: "SIGN IN", signout: "SIGN OUT", visitor: "VISITOR" };
+const SITE_CODE = "TK-GATE-ARNDELL-PARK";
 
 export default function Access() {
   const s = useStyles();
@@ -18,6 +21,7 @@ export default function Access() {
   const insets = useSafeAreaInsets();
   const qc = useQueryClient();
   const [showVisitor, setShowVisitor] = useState(false);
+  const [showScan, setShowScan] = useState(false);
 
   const { data, isLoading } = useQuery({ queryKey: ["access"], queryFn: () => api.get("/access") });
 
@@ -32,6 +36,11 @@ export default function Access() {
 
   const onSite = data?.status === "in";
   const records = data?.records || [];
+
+  const onScanned = (type: string) => {
+    setShowScan(false);
+    act.mutate(type);
+  };
 
   return (
     <View style={s.container}>
@@ -61,7 +70,13 @@ export default function Access() {
                 </Text>
               </View>
 
-              {/* Actions */}
+              {/* Scan to sign in/out */}
+              <Pressable style={s.scanBtn} onPress={() => setShowScan(true)} testID="scan-gate">
+                <QrCode size={24} color={colors.onBrandPrimary} weight="bold" />
+                <Text style={s.scanText}>{onSite ? "SCAN GATE TO SIGN OUT" : "SCAN GATE TO SIGN IN"}</Text>
+              </Pressable>
+
+              {/* Manual Actions */}
               <View style={s.actionsWrap}>
                 <Pressable
                   style={[s.actionBtn, onSite && s.actionDisabled]}
@@ -86,6 +101,16 @@ export default function Access() {
                 <UserPlus size={20} color={colors.onBrandPrimary} weight="bold" />
                 <Text style={s.visitorText}>VISITOR / CONTRACTOR INDUCTION</Text>
               </Pressable>
+
+              {/* Gate QR poster */}
+              <View style={s.gatePanel}>
+                <Text style={s.gateLabel}>GATE ACCESS CODE</Text>
+                <View style={s.qrWrap}>
+                  <QRCode value={SITE_CODE} size={140} color={colors.onSurface} backgroundColor={colors.surface} />
+                </View>
+                <Text style={s.gateName}>ARNDELL PARK · MAIN GATE</Text>
+                <Text style={s.gateHint}>Print &amp; post this at the gate. Staff scan it to sign in / out.</Text>
+              </View>
 
               <View style={s.recordsHeader}>
                 <Text style={s.recordsLabel}>ACCESS LOG</Text>
@@ -113,7 +138,78 @@ export default function Access() {
       )}
 
       <VisitorForm visible={showVisitor} onClose={() => setShowVisitor(false)} />
+      <QRScanner visible={showScan} onClose={() => setShowScan(false)} onSite={onSite} onScanned={onScanned} />
     </View>
+  );
+}
+
+function QRScanner({ visible, onClose, onSite, onScanned }: { visible: boolean; onClose: () => void; onSite: boolean; onScanned: (type: string) => void }) {
+  const s = useStyles();
+  const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
+  const [permission, requestPermission] = useCameraPermissions();
+  const [handled, setHandled] = useState(false);
+  const [error, setError] = useState("");
+
+  React.useEffect(() => {
+    if (visible) {
+      setHandled(false);
+      setError("");
+    }
+  }, [visible]);
+
+  const handleScan = (data: string) => {
+    if (handled) return;
+    if (data !== SITE_CODE) {
+      setError("Unrecognised code — scan the TK gate QR.");
+      return;
+    }
+    setHandled(true);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    onScanned(onSite ? "signout" : "signin");
+  };
+
+  return (
+    <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
+      <View style={[s.scanContainer, { paddingTop: insets.top }]}>
+        <View style={s.scanHeader}>
+          <Text style={s.scanTitle}>SCAN GATE QR</Text>
+          <Pressable onPress={onClose} testID="close-scan"><X size={26} color={colors.onSurfaceInverse} weight="bold" /></Pressable>
+        </View>
+
+        {!permission ? (
+          <View style={s.scanCenter}><ActivityIndicator color={colors.onSurfaceInverse} /></View>
+        ) : !permission.granted ? (
+          <View style={s.scanCenter}>
+            <QrCode size={48} color={colors.onSurfaceInverse} weight="bold" />
+            <Text style={s.scanPermText}>Camera access is needed to scan the gate QR code.</Text>
+            {permission.canAskAgain ? (
+              <Pressable style={s.scanPermBtn} onPress={requestPermission} testID="scan-enable-camera">
+                <Text style={s.scanPermBtnText}>ENABLE CAMERA</Text>
+              </Pressable>
+            ) : (
+              <Pressable style={s.scanPermBtn} onPress={() => Linking.openSettings()} testID="scan-open-settings">
+                <Text style={s.scanPermBtnText}>OPEN SETTINGS</Text>
+              </Pressable>
+            )}
+          </View>
+        ) : (
+          <View style={{ flex: 1 }}>
+            <CameraView
+              style={{ flex: 1 }}
+              facing="back"
+              barcodeScannerSettings={{ barcodeTypes: ["qr"] }}
+              onBarcodeScanned={({ data }) => handleScan(data)}
+            />
+            <View style={s.scanOverlay} pointerEvents="none">
+              <View style={s.scanFrame} />
+              <Text style={s.scanHint}>{onSite ? "Point at the gate QR to SIGN OUT" : "Point at the gate QR to SIGN IN"}</Text>
+              {error ? <Text style={s.scanError}>{error}</Text> : null}
+            </View>
+          </View>
+        )}
+      </View>
+    </Modal>
   );
 }
 
@@ -171,6 +267,13 @@ const useStyles = makeStyles((c) => ({
   statusText: { fontFamily: fonts.display, fontSize: 22, letterSpacing: 0.5 },
   statusCount: { fontFamily: fonts.mono, fontSize: 12, letterSpacing: 1, opacity: 0.85 },
   actionsWrap: { flexDirection: "row" },
+  scanBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, backgroundColor: c.brandPrimary, paddingVertical: 18, borderBottomWidth: 2, borderColor: c.borderStrong },
+  scanText: { fontFamily: fonts.monoBold, fontSize: 14, color: c.onBrandPrimary, letterSpacing: 1 },
+  gatePanel: { alignItems: "center", padding: 24, gap: 8, borderBottomWidth: 2, borderColor: c.borderStrong },
+  gateLabel: { fontFamily: fonts.mono, fontSize: 11, color: c.muted, letterSpacing: 2 },
+  qrWrap: { padding: 16, borderWidth: 2, borderColor: c.borderStrong, backgroundColor: c.surface },
+  gateName: { fontFamily: fonts.monoBold, fontSize: 13, color: c.onSurface, letterSpacing: 1 },
+  gateHint: { fontFamily: fonts.body, fontSize: 12, color: c.muted, textAlign: "center" },
   actionBtn: { flex: 1, paddingVertical: 22, alignItems: "center", justifyContent: "center", gap: 8, borderBottomWidth: 2, borderRightWidth: 2, borderColor: c.borderStrong },
   actionDisabled: { opacity: 0.3 },
   actionText: { fontFamily: fonts.monoBold, fontSize: 13, color: c.onSurface, letterSpacing: 1 },
@@ -190,4 +293,16 @@ const useStyles = makeStyles((c) => ({
   modalTitle: { fontFamily: fonts.display, fontSize: 20, color: c.onSurface, letterSpacing: 0.5 },
   inductNote: { backgroundColor: c.warning, padding: 12 },
   inductText: { fontFamily: fonts.bodyMed, fontSize: 13, color: c.onWarning },
+
+  scanContainer: { flex: 1, backgroundColor: c.surfaceInverse },
+  scanHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 20 },
+  scanTitle: { fontFamily: fonts.display, fontSize: 20, color: c.onSurfaceInverse, letterSpacing: 0.5 },
+  scanCenter: { flex: 1, alignItems: "center", justifyContent: "center", gap: 16, padding: 32 },
+  scanPermText: { fontFamily: fonts.body, fontSize: 14, color: c.onSurfaceInverse, textAlign: "center", opacity: 0.85, lineHeight: 20 },
+  scanPermBtn: { backgroundColor: c.surface, paddingHorizontal: 24, paddingVertical: 14 },
+  scanPermBtnText: { fontFamily: fonts.monoBold, fontSize: 13, color: c.onSurface, letterSpacing: 1 },
+  scanOverlay: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, alignItems: "center", justifyContent: "center", gap: 20 },
+  scanFrame: { width: 220, height: 220, borderWidth: 3, borderColor: "#FFFFFF" },
+  scanHint: { fontFamily: fonts.monoBold, fontSize: 13, color: "#FFFFFF", letterSpacing: 1, textAlign: "center", paddingHorizontal: 24 },
+  scanError: { fontFamily: fonts.bodyMed, fontSize: 13, color: "#FFFFFF", backgroundColor: c.error, paddingHorizontal: 12, paddingVertical: 6 },
 }));

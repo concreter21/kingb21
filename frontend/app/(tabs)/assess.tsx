@@ -1,22 +1,22 @@
 import React, { useRef, useState } from "react";
-import { View, Text, Pressable, ScrollView, Linking, ActivityIndicator } from "react-native";
+import { View, Text, Pressable, Linking, ActivityIndicator } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import * as ImagePicker from "expo-image-picker";
 import * as Haptics from "expo-haptics";
 import { useQueryClient } from "@tanstack/react-query";
-import { Camera, Image as ImageIcon, Warning, ArrowClockwise } from "phosphor-react-native";
+import { Camera, Image as ImageIcon, Warning, ArrowClockwise, WarningOctagon, ClipboardText, UsersThree, Gear } from "phosphor-react-native";
 
 import { makeStyles, fonts, useTheme } from "@/src/theme";
 import { Button } from "@/src/components/ui";
 import { api } from "@/src/api";
 
 const MODES = [
-  { key: "risk", label: "RISK", hint: "Live risk assessment" },
-  { key: "swms", label: "SWMS", hint: "Safe work method statement" },
-  { key: "density", label: "DENSITY", hint: "Worker density & spacing" },
-  { key: "machinery", label: "MACHINERY", hint: "Machine safety check" },
+  { key: "risk", label: "Risk", hint: "Live risk assessment", icon: WarningOctagon },
+  { key: "swms", label: "SWMS", hint: "Safe work method statement", icon: ClipboardText },
+  { key: "density", label: "Density", hint: "Worker density & spacing", icon: UsersThree },
+  { key: "machinery", label: "Machine", hint: "Machine safety check", icon: Gear },
 ];
 
 export default function Assess() {
@@ -120,7 +120,7 @@ export default function Assess() {
         {analysing ? (
           <View style={s.analysing} pointerEvents="none">
             <ActivityIndicator color="#FFFFFF" size="large" />
-            <Text style={s.analysingText}>ANALYSING {activeMode.label}...</Text>
+            <Text style={s.analysingText}>ANALYSING {activeMode.label.toUpperCase()}...</Text>
             <Text style={s.analysingSub}>AI reviewing against WHS Act 2011</Text>
           </View>
         ) : null}
@@ -134,27 +134,24 @@ export default function Assess() {
       <View style={[s.header, { paddingTop: insets.top + 12 }]}>
         <Text style={s.title}>AI ASSESS</Text>
         <Text style={s.subtitle}>{activeMode.hint}</Text>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={s.chipRow}
-          style={s.chipScroll}
-        >
+        <View style={s.segment}>
           {MODES.map((m) => {
             const active = m.key === mode;
+            const Icon = m.icon;
             return (
               <Pressable
                 key={m.key}
                 testID={`mode-${m.key}`}
                 onPress={() => setMode(m.key)}
                 disabled={analysing}
-                style={[s.chip, active && s.chipActive]}
+                style={[s.segItem, active && s.segItemActive]}
               >
-                <Text style={[s.chipText, active && s.chipTextActive]}>{m.label}</Text>
+                <Icon size={22} color={active ? colors.onBrandPrimary : colors.onSurface} weight={active ? "fill" : "regular"} />
+                <Text style={[s.segLabel, active && s.segLabelActive]}>{m.label}</Text>
               </Pressable>
             );
           })}
-        </ScrollView>
+        </View>
       </View>
 
       {renderViewfinder()}
@@ -205,18 +202,20 @@ const useStyles = makeStyles((c) => ({
   subtitle: { fontFamily: fonts.body, fontSize: 13, color: c.muted, marginTop: 2 },
   chipScroll: { marginTop: 14, marginHorizontal: -20 },
   chipRow: { gap: 8, paddingHorizontal: 20 },
-  chip: {
-    flexShrink: 0,
-    height: 36,
+  segment: { flexDirection: "row", marginTop: 14, borderWidth: 2, borderColor: c.borderStrong },
+  segItem: {
+    flex: 1,
+    alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 16,
-    borderWidth: 2,
-    borderColor: c.borderStrong,
+    gap: 4,
+    paddingVertical: 10,
     backgroundColor: c.surface,
+    borderRightWidth: 2,
+    borderRightColor: c.borderStrong,
   },
-  chipActive: { backgroundColor: c.brandPrimary },
-  chipText: { fontFamily: fonts.monoBold, fontSize: 12, color: c.onSurface, letterSpacing: 1 },
-  chipTextActive: { color: c.onBrandPrimary },
+  segItemActive: { backgroundColor: c.brandPrimary },
+  segLabel: { fontFamily: fonts.monoBold, fontSize: 11, color: c.onSurface, letterSpacing: 0.5 },
+  segLabelActive: { color: c.onBrandPrimary },
 
   permBox: { flex: 1, backgroundColor: c.brandPrimary, alignItems: "center", justifyContent: "center", padding: 32, gap: 12 },
   permTitle: { fontFamily: fonts.display, fontSize: 18, color: c.onBrandPrimary, letterSpacing: 1 },

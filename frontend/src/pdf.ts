@@ -80,6 +80,11 @@ export function buildHtml(a: any): string {
   const actions = (r.recommended_actions || []).map((x: string) => `<li>${esc(x)}</li>`).join("");
   const refs = (r.legislation_refs || []).map((x: string) => `<li>${esc(x)}</li>`).join("");
 
+  const approved = a.status === "approved";
+  const statusBanner = approved
+    ? `<div class="status approved">APPROVED &amp; FINALISED — ${esc(a.approved_by)} (${esc(a.approved_by_role)}) · ${esc(new Date(a.approved_at).toLocaleString("en-AU"))}</div>`
+    : `<div class="status draft">DRAFT — PENDING SAFETY OFFICER SIGN-OFF</div>`;
+
   return `<!DOCTYPE html><html><head><meta charset="utf-8"/>
   <style>
     * { font-family: -apple-system, Helvetica, Arial, sans-serif; }
@@ -89,6 +94,9 @@ export function buildHtml(a: any): string {
     .sub { color:#52525B; font-size:13px; }
     .meta { border:2px solid #111; padding:12px; margin:16px 0; font-size:13px; }
     .overall { display:inline-block; color:#fff; padding:6px 14px; font-weight:bold; margin:10px 0; background:${riskHex(r.overall_risk_level)}; }
+    .status { padding:8px 12px; margin:10px 0; font-size:12px; font-weight:bold; letter-spacing:1px; }
+    .status.approved { background:#16A34A; color:#fff; }
+    .status.draft { background:#F59E0B; color:#111; }
     h2 { font-size:16px; border-bottom:2px solid #111; padding-bottom:4px; margin-top:24px; }
     table { width:100%; border-collapse:collapse; margin-top:8px; font-size:12px; }
     th,td { border:1px solid #999; padding:6px; text-align:left; vertical-align:top; }
@@ -107,6 +115,7 @@ export function buildHtml(a: any): string {
       <b>Reference:</b> ${esc(a.id)}
     </div>
     <div class="overall">OVERALL RISK: ${esc(r.overall_risk_level || "N/A")}</div>
+    ${statusBanner}
     <h2>Summary</h2>
     <p>${esc(r.summary)}</p>
     ${a.notes ? `<p><b>Field notes:</b> ${esc(a.notes)}</p>` : ""}
