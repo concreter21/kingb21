@@ -36,6 +36,8 @@ class SWMSGenerateRequest(BaseModel):
     site: str
     job_type: str
     notes: Optional[str] = ""
+    model_provider: Optional[str] = "openai"  # openai | gemini | anthropic
+    model_name: Optional[str] = None
 
 
 class SWMSSection(BaseModel):
@@ -54,6 +56,8 @@ class AgentChatRequest(BaseModel):
     session_id: str
     message: str
     history: Optional[List[ChatMessage]] = []
+    model_provider: Optional[str] = "openai"
+    model_name: Optional[str] = None
 
 
 class AgentChatResponse(BaseModel):
@@ -170,6 +174,16 @@ async def get_status_checks():
     return [StatusCheck(**status_check) for status_check in status_checks]
 
 
+def _pick_model(provider: Optional[str], name: Optional[str]) -> tuple[str, str]:
+    """Return (provider, model_name) with safe defaults."""
+    p = (provider or "openai").lower()
+    if p == "gemini":
+        return ("gemini", name or "gemini-3-flash-preview")
+    if p == "anthropic":
+        return ("anthropic", name or "claude-sonnet-4-6")
+    return ("openai", name or "gpt-4o-mini")
+
+
 @api_router.post("/swms/generate", response_model=SWMSSection)
 async def generate_swms(req: SWMSGenerateRequest):
     """Generate SWMS content using GPT."""
@@ -198,11 +212,12 @@ async def generate_swms(req: SWMSGenerateRequest):
     )
 
     session_id = f"swms-{uuid.uuid4()}"
+    prov, mname = _pick_model(req.model_provider, req.model_name)
     chat = LlmChat(
         api_key=api_key,
         session_id=session_id,
         system_message=system_msg,
-    ).with_model("openai", "gpt-4o-mini")
+    ).with_model(prov, mname)
 
     try:
         reply = await chat.send_message(UserMessage(text=user_prompt))
@@ -263,7 +278,7 @@ async def agent_chat(req: AgentChatRequest):
         api_key=api_key,
         session_id=req.session_id,
         system_message=system_msg,
-    ).with_model("openai", "gpt-4o-mini")
+    ).with_model(*_pick_model(req.model_provider, req.model_name))
 
     # Replay history so the model has context
     for msg in (req.history or [])[-8:]:

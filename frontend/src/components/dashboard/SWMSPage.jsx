@@ -40,6 +40,7 @@ const SWMSPage = () => {
   const [generating, setGenerating] = useState(false);
   const [aiResult, setAiResult] = useState(null);
   const [aiError, setAiError] = useState("");
+  const [model, setModel] = useState("openai");
   const { toast } = useToast();
 
   const filtered = swmsList
@@ -77,6 +78,7 @@ const SWMSPage = () => {
         site,
         job_type: jobType,
         notes,
+        model_provider: model,
       });
       setAiResult(res.data);
       toast({ title: "SWMS drafted", description: "AI generated hazards, controls & PPE." });
@@ -283,6 +285,30 @@ const SWMSPage = () => {
                     className="w-full px-3 py-2 border border-slate-200 rounded-lg text-[13px] resize-none outline-none focus:border-slate-400"
                     placeholder="e.g. steep pitch roof, adjacent live overhead line…"
                   />
+                </div>
+                <div>
+                  <label className="text-[12px] font-medium text-slate-700 mb-1 block">AI model</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      { id: "openai", label: "GPT-4o", sub: "OpenAI" },
+                      { id: "gemini", label: "Gemini", sub: "Google" },
+                      { id: "anthropic", label: "Claude", sub: "Anthropic" },
+                    ].map((m) => (
+                      <button
+                        key={m.id}
+                        type="button"
+                        onClick={() => setModel(m.id)}
+                        className={`h-14 rounded-lg border text-left px-3 transition-colors ${
+                          model === m.id
+                            ? "bg-slate-900 text-white border-slate-900"
+                            : "bg-white text-slate-700 border-slate-200 hover:border-slate-300"
+                        }`}
+                      >
+                        <div className="text-[12px] font-semibold leading-tight">{m.label}</div>
+                        <div className={`text-[10px] ${model === m.id ? "text-white/70" : "text-slate-500"}`}>{m.sub}</div>
+                      </button>
+                    ))}
+                  </div>
                 </div>
                 <button
                   type="submit"

@@ -1,11 +1,18 @@
 import React, { useState, useRef, useEffect } from "react";
-import { MessageSquare, X, Send, Sparkles, Bot, User } from "lucide-react";
+import { MessageSquare, X, Send, Sparkles, Bot, User, Cpu } from "lucide-react";
 import axios from "axios";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 const SESSION_KEY = "solarsafe_agent_session";
 const MESSAGES_KEY = "solarsafe_agent_messages";
+const MODEL_KEY = "solarsafe_agent_model";
+
+const MODELS = [
+  { id: "openai", label: "GPT-4o mini", subtitle: "OpenAI · fast", color: "from-emerald-500 to-teal-600" },
+  { id: "gemini", label: "Gemini 3 Flash", subtitle: "Google · multimodal", color: "from-blue-500 to-indigo-600" },
+  { id: "anthropic", label: "Claude Sonnet", subtitle: "Anthropic · reasoning", color: "from-orange-500 to-amber-600" },
+];
 
 const suggestedPrompts = [
   "How do I isolate DC before roof work?",
@@ -27,8 +34,14 @@ const AgentChat = () => {
     }
     return sid;
   });
+  const [model, setModel] = useState(() => localStorage.getItem(MODEL_KEY) || "openai");
+  const [modelMenuOpen, setModelMenuOpen] = useState(false);
   const scrollRef = useRef(null);
   const inputRef = useRef(null);
+
+  useEffect(() => {
+    localStorage.setItem(MODEL_KEY, model);
+  }, [model]);
 
   useEffect(() => {
     const saved = localStorage.getItem(MESSAGES_KEY);
@@ -62,6 +75,7 @@ const AgentChat = () => {
         session_id: sessionId,
         message: trimmed,
         history: messages.map(({ role, content }) => ({ role, content })),
+        model_provider: model,
       });
       setMessages((prev) => [
         ...prev,
@@ -110,16 +124,21 @@ const AgentChat = () => {
       {open && (
         <div className="fixed bottom-24 right-6 w-[92vw] sm:w-[400px] h-[560px] max-h-[calc(100vh-8rem)] bg-white rounded-2xl shadow-2xl border border-slate-200 z-40 flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-4">
           {/* Header */}
-          <div className="px-4 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white flex items-center gap-3">
+          <div className="px-4 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white flex items-center gap-3 relative">
             <div className="w-9 h-9 rounded-full bg-white/20 backdrop-blur flex items-center justify-center">
               <Sparkles className="w-4 h-4" />
             </div>
             <div className="flex-1 min-w-0">
               <div className="text-[14px] font-semibold leading-tight">SolarSafe Assistant</div>
-              <div className="text-[11px] text-white/80 flex items-center gap-1.5">
+              <button
+                onClick={() => setModelMenuOpen((v) => !v)}
+                className="text-[11px] text-white/80 hover:text-white inline-flex items-center gap-1.5 group"
+              >
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-300 animate-pulse" />
-                Online · GPT-powered
-              </div>
+                <Cpu className="w-3 h-3" />
+                <span>{MODELS.find((m) => m.id === model)?.label}</span>
+                <span className="opacity-60 group-hover:opacity-100">▾</span>
+              </button>
             </div>
             {messages.length > 0 && (
               <button
@@ -129,6 +148,33 @@ const AgentChat = () => {
               >
                 Clear
               </button>
+            )}
+
+            {/* Model dropdown */}
+            {modelMenuOpen && (
+              <div className="absolute top-full left-4 mt-1 w-[220px] bg-white rounded-xl shadow-xl border border-slate-200 py-1.5 z-10">
+                <div className="text-[10px] font-semibold uppercase text-slate-400 px-3 pt-1 pb-1">Model</div>
+                {MODELS.map((m) => (
+                  <button
+                    key={m.id}
+                    onClick={() => { setModel(m.id); setModelMenuOpen(false); }}
+                    className={`w-full px-3 py-2 flex items-center gap-2.5 hover:bg-slate-50 transition-colors ${
+                      model === m.id ? "bg-slate-50" : ""
+                    }`}
+                  >
+                    <div className={`w-7 h-7 rounded-full bg-gradient-to-br ${m.color} flex items-center justify-center flex-shrink-0`}>
+                      <Cpu className="w-3.5 h-3.5 text-white" />
+                    </div>
+                    <div className="flex-1 text-left min-w-0">
+                      <div className="text-[12px] font-semibold text-slate-900">{m.label}</div>
+                      <div className="text-[10px] text-slate-500">{m.subtitle}</div>
+                    </div>
+                    {model === m.id && (
+                      <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                    )}
+                  </button>
+                ))}
+              </div>
             )}
           </div>
 

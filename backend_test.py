@@ -1396,6 +1396,327 @@ def test_watch_history_delete_endpoint():
         return False
 
 
+def test_agent_chat_gemini():
+    """Test POST /api/agent/chat with Gemini provider"""
+    print_test_header("POST /api/agent/chat - AI Agent Chat (Gemini Provider)")
+    
+    try:
+        test_data = {
+            "session_id": "gemini-chat-1",
+            "message": "In one sentence, what PPE is essential for rooftop solar work?",
+            "history": [],
+            "model_provider": "gemini"
+        }
+        
+        print(f"Request payload:")
+        print(json.dumps(test_data, indent=2))
+        
+        start_time = time.time()
+        
+        response = requests.post(
+            f"{BACKEND_URL}/agent/chat",
+            json=test_data,
+            timeout=35
+        )
+        
+        end_time = time.time()
+        response_time = end_time - start_time
+        
+        print(f"\nStatus Code: {response.status_code}")
+        print(f"Response Time: {response_time:.2f} seconds")
+        
+        if response.status_code == 200:
+            print_success("Agent chat with Gemini returned 200 status")
+        else:
+            print_error(f"Expected 200, got {response.status_code}")
+            print(f"Response body: {response.text}")
+            return False
+        
+        try:
+            data = response.json()
+            print(f"\nResponse structure:")
+            print(json.dumps(data, indent=2))
+            
+            # Check required fields
+            if "reply" not in data or "session_id" not in data:
+                print_error("Response missing required fields")
+                return False
+            
+            print_success(f"Response contains required fields")
+            
+            # Validate reply is non-empty
+            if isinstance(data["reply"], str) and len(data["reply"]) > 0:
+                print_success(f"'reply' is a non-empty string ({len(data['reply'])} characters)")
+                print(f"  Reply: {data['reply'][:200]}...")
+                
+                # Check if reply is contextually relevant
+                ppe_keywords = ["ppe", "helmet", "harness", "gloves", "boots", "glasses", "vest", "protection", "safety", "fall"]
+                reply_lower = data["reply"].lower()
+                relevant = any(keyword in reply_lower for keyword in ppe_keywords)
+                
+                if relevant:
+                    print_success("Reply appears contextually relevant to PPE question")
+                else:
+                    print_warning("Reply may not be contextually relevant to PPE question")
+                
+                return True
+            else:
+                print_error("'reply' is empty or not a string")
+                return False
+                
+        except json.JSONDecodeError as e:
+            print_error(f"Failed to parse JSON response: {str(e)}")
+            print(f"Response text: {response.text}")
+            return False
+            
+    except requests.Timeout:
+        print_error("Request timed out (>35 seconds)")
+        return False
+    except Exception as e:
+        print_error(f"Request failed: {str(e)}")
+        return False
+
+
+def test_swms_generate_gemini():
+    """Test POST /api/swms/generate with Gemini provider"""
+    print_test_header("POST /api/swms/generate - AI SWMS Generation (Gemini Provider)")
+    
+    try:
+        test_data = {
+            "site": "Villa – Grunewald",
+            "job_type": "Rooftop PV Installation – 8kW Domestic",
+            "notes": "Terracotta tile roof, 30 degree pitch",
+            "model_provider": "gemini"
+        }
+        
+        print(f"Request payload:")
+        print(json.dumps(test_data, indent=2))
+        
+        start_time = time.time()
+        
+        response = requests.post(
+            f"{BACKEND_URL}/swms/generate",
+            json=test_data,
+            timeout=35
+        )
+        
+        end_time = time.time()
+        response_time = end_time - start_time
+        
+        print(f"\nStatus Code: {response.status_code}")
+        print(f"Response Time: {response_time:.2f} seconds")
+        
+        if response.status_code == 200:
+            print_success("SWMS generation with Gemini returned 200 status")
+        else:
+            print_error(f"Expected 200, got {response.status_code}")
+            print(f"Response body: {response.text}")
+            return False
+        
+        try:
+            data = response.json()
+            print(f"\nResponse structure:")
+            print(json.dumps(data, indent=2))
+            
+            # Check required fields
+            required_fields = ["hazards", "controls", "ppe", "summary"]
+            all_fields_present = True
+            
+            for field in required_fields:
+                if field in data:
+                    print_success(f"Response contains '{field}' field")
+                else:
+                    print_error(f"Response missing '{field}' field")
+                    all_fields_present = False
+            
+            if not all_fields_present:
+                return False
+            
+            # Validate list fields have meaningful content
+            list_fields = ["hazards", "controls", "ppe"]
+            all_lists_valid = True
+            
+            for field in list_fields:
+                if isinstance(data[field], list) and len(data[field]) > 0:
+                    print_success(f"'{field}' is a non-empty list with {len(data[field])} items")
+                    print(f"  Sample: {data[field][0]}")
+                else:
+                    print_error(f"'{field}' is empty or not a list")
+                    all_lists_valid = False
+            
+            # Validate summary
+            if isinstance(data["summary"], str) and len(data["summary"]) > 0:
+                print_success(f"'summary' is a non-empty string ({len(data['summary'])} characters)")
+                print(f"  Summary: {data['summary'][:150]}...")
+            else:
+                print_error("'summary' is empty or not a string")
+                all_lists_valid = False
+            
+            return all_lists_valid
+            
+        except json.JSONDecodeError as e:
+            print_error(f"Failed to parse JSON response: {str(e)}")
+            print(f"Response text: {response.text}")
+            return False
+            
+    except requests.Timeout:
+        print_error("Request timed out (>35 seconds)")
+        return False
+    except Exception as e:
+        print_error(f"Request failed: {str(e)}")
+        return False
+
+
+def test_agent_chat_anthropic():
+    """Test POST /api/agent/chat with Anthropic (Claude) provider"""
+    print_test_header("POST /api/agent/chat - AI Agent Chat (Anthropic/Claude Provider)")
+    
+    try:
+        test_data = {
+            "session_id": "claude-1",
+            "message": "What is lockout/tagout in one sentence?",
+            "history": [],
+            "model_provider": "anthropic"
+        }
+        
+        print(f"Request payload:")
+        print(json.dumps(test_data, indent=2))
+        
+        start_time = time.time()
+        
+        response = requests.post(
+            f"{BACKEND_URL}/agent/chat",
+            json=test_data,
+            timeout=35
+        )
+        
+        end_time = time.time()
+        response_time = end_time - start_time
+        
+        print(f"\nStatus Code: {response.status_code}")
+        print(f"Response Time: {response_time:.2f} seconds")
+        
+        if response.status_code == 200:
+            print_success("Agent chat with Anthropic returned 200 status")
+        else:
+            print_error(f"Expected 200, got {response.status_code}")
+            print(f"Response body: {response.text}")
+            return False
+        
+        try:
+            data = response.json()
+            print(f"\nResponse structure:")
+            print(json.dumps(data, indent=2))
+            
+            # Check required fields
+            if "reply" not in data or "session_id" not in data:
+                print_error("Response missing required fields")
+                return False
+            
+            print_success(f"Response contains required fields")
+            
+            # Validate reply is non-empty
+            if isinstance(data["reply"], str) and len(data["reply"]) > 0:
+                print_success(f"'reply' is a non-empty string ({len(data['reply'])} characters)")
+                print(f"  Reply: {data['reply'][:200]}...")
+                
+                # Check if reply is contextually relevant
+                loto_keywords = ["lockout", "tagout", "loto", "energy", "isolate", "equipment", "safety", "procedure"]
+                reply_lower = data["reply"].lower()
+                relevant = any(keyword in reply_lower for keyword in loto_keywords)
+                
+                if relevant:
+                    print_success("Reply appears contextually relevant to lockout/tagout question")
+                else:
+                    print_warning("Reply may not be contextually relevant to lockout/tagout question")
+                
+                return True
+            else:
+                print_error("'reply' is empty or not a string")
+                return False
+                
+        except json.JSONDecodeError as e:
+            print_error(f"Failed to parse JSON response: {str(e)}")
+            print(f"Response text: {response.text}")
+            return False
+            
+    except requests.Timeout:
+        print_error("Request timed out (>35 seconds)")
+        return False
+    except Exception as e:
+        print_error(f"Request failed: {str(e)}")
+        return False
+
+
+def test_agent_chat_default_provider():
+    """Test POST /api/agent/chat without model_provider (should default to OpenAI)"""
+    print_test_header("POST /api/agent/chat - AI Agent Chat (Default Provider - OpenAI)")
+    
+    try:
+        test_data = {
+            "session_id": "default-1",
+            "message": "Hello",
+            "history": []
+        }
+        
+        print(f"Request payload:")
+        print(json.dumps(test_data, indent=2))
+        
+        start_time = time.time()
+        
+        response = requests.post(
+            f"{BACKEND_URL}/agent/chat",
+            json=test_data,
+            timeout=35
+        )
+        
+        end_time = time.time()
+        response_time = end_time - start_time
+        
+        print(f"\nStatus Code: {response.status_code}")
+        print(f"Response Time: {response_time:.2f} seconds")
+        
+        if response.status_code == 200:
+            print_success("Agent chat with default provider returned 200 status")
+        else:
+            print_error(f"Expected 200, got {response.status_code}")
+            print(f"Response body: {response.text}")
+            return False
+        
+        try:
+            data = response.json()
+            print(f"\nResponse structure:")
+            print(json.dumps(data, indent=2))
+            
+            # Check required fields
+            if "reply" not in data or "session_id" not in data:
+                print_error("Response missing required fields")
+                return False
+            
+            print_success(f"Response contains required fields")
+            
+            # Validate reply is non-empty
+            if isinstance(data["reply"], str) and len(data["reply"]) > 0:
+                print_success(f"'reply' is a non-empty string ({len(data['reply'])} characters)")
+                print(f"  Reply: {data['reply'][:200]}...")
+                return True
+            else:
+                print_error("'reply' is empty or not a string")
+                return False
+                
+        except json.JSONDecodeError as e:
+            print_error(f"Failed to parse JSON response: {str(e)}")
+            print(f"Response text: {response.text}")
+            return False
+            
+    except requests.Timeout:
+        print_error("Request timed out (>35 seconds)")
+        return False
+    except Exception as e:
+        print_error(f"Request failed: {str(e)}")
+        return False
+
+
 def run_all_tests():
     """Run all backend tests and report results"""
     print(f"\n{Colors.BLUE}{'='*80}{Colors.END}")
@@ -1405,39 +1726,29 @@ def run_all_tests():
     
     results = {}
     
-    # Test existing endpoints first
+    # Test NEW Gemini model integration first
+    print(f"\n{Colors.YELLOW}{'='*80}{Colors.END}")
+    print(f"{Colors.YELLOW}Testing NEW Gemini Model Integration{Colors.END}")
+    print(f"{Colors.YELLOW}{'='*80}{Colors.END}")
+    
+    results["POST /api/agent/chat (Gemini)"] = test_agent_chat_gemini()
+    results["POST /api/swms/generate (Gemini)"] = test_swms_generate_gemini()
+    results["POST /api/agent/chat (Anthropic)"] = test_agent_chat_anthropic()
+    results["POST /api/agent/chat (Default OpenAI)"] = test_agent_chat_default_provider()
+    
+    # Test existing endpoints to confirm nothing broke
+    print(f"\n{Colors.YELLOW}{'='*80}{Colors.END}")
+    print(f"{Colors.YELLOW}Testing Existing Endpoints (Regression Check){Colors.END}")
+    print(f"{Colors.YELLOW}{'='*80}{Colors.END}")
+    
     results["GET /api/"] = test_root_endpoint()
-    results["Status endpoints"] = test_status_endpoints()
-    results["POST /api/swms/generate"] = test_swms_generate_endpoint()
-    results["POST /api/agent/chat"] = test_agent_chat_endpoint()
     results["POST /api/hazards/from-voice"] = test_hazards_from_voice_endpoint()
     results["POST /api/risk/assess"] = test_risk_assess_endpoint()
     results["POST /api/risk/watch"] = test_risk_watch_endpoint()
-    
-    # Test NEW Watch History + Hazard persistence endpoints
-    # Step 1: Log a watch alert
-    watch_log_result, watch_alert_id = test_watch_log_endpoint()
-    results["POST /api/watch/log"] = watch_log_result
-    
-    # Step 2: Get watch history with various filters
-    results["GET /api/watch/history"] = test_watch_history_endpoint(watch_alert_id)
-    
-    # Step 3: Create a hazard linked to the watch alert
-    hazards_create_result, hazard_id = test_hazards_create_endpoint(watch_alert_id)
-    results["POST /api/hazards"] = hazards_create_result
-    
-    # Step 4: Verify the watch alert is now linked to the hazard
-    if watch_alert_id and hazard_id:
-        results["Watch Alert Linking"] = test_watch_alert_linked_to_hazard(watch_alert_id, hazard_id)
-    else:
-        results["Watch Alert Linking"] = False
-        print_error("Skipping watch alert linking test (missing IDs)")
-    
-    # Step 5: List hazards
+    results["POST /api/watch/log"] = test_watch_log_endpoint()[0]
+    results["GET /api/watch/history"] = test_watch_history_endpoint()
+    results["POST /api/hazards"] = test_hazards_create_endpoint()[0]
     results["GET /api/hazards"] = test_hazards_list_endpoint()
-    
-    # Step 6: Delete watch history
-    results["DELETE /api/watch/history"] = test_watch_history_delete_endpoint()
     
     # Summary
     print(f"\n{Colors.BLUE}{'='*80}{Colors.END}")

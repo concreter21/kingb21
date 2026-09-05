@@ -102,7 +102,7 @@
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
 
-user_problem_statement: "Test the new Watch History + Hazard persistence endpoints for SolarSafe pro"
+user_problem_statement: "Test the Gemini model integration in SolarSafe pro backend"
 
 backend:
   - task: "GET /api/ root endpoint"
@@ -285,23 +285,69 @@ backend:
         agent: "testing"
         comment: "Tested successfully. Returns 200 status. Response contains 'deleted' field with value 1 (deleted 1 alert). Verified that GET /api/watch/history returns empty list after delete. MongoDB delete operation working correctly. Endpoint is functioning correctly for clearing watch history."
 
+  - task: "POST /api/agent/chat with Gemini provider"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "Tested successfully with model_provider='gemini', session_id='gemini-chat-1', message='In one sentence, what PPE is essential for rooftop solar work?'. Returns 200 status in 2.21 seconds. Response contains all required fields (reply, session_id). Reply is non-empty (186 chars) and contextually relevant to PPE question (mentions fall-arrest harness, hard hat, safety boots, eye protection, gloves). Gemini model integration with emergentintegrations library is working correctly. Model name defaults to 'gemini-3-flash-preview' as configured in _pick_model function."
+
+  - task: "POST /api/swms/generate with Gemini provider"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "Tested successfully with model_provider='gemini', site='Villa – Grunewald', job_type='Rooftop PV Installation – 8kW Domestic', notes='Terracotta tile roof, 30 degree pitch'. Returns 200 status in 5.40 seconds (well under 30s requirement). Response contains all required fields (hazards, controls, ppe, summary) with meaningful content. All list fields are non-empty: hazards (5 items), controls (5 items), ppe (5 items). Summary is non-empty (257 chars) and contextually relevant. Gemini model integration with emergentintegrations library is working correctly for SWMS generation."
+
+  - task: "POST /api/agent/chat with Anthropic (Claude) provider"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "Tested successfully with model_provider='anthropic', session_id='claude-1', message='What is lockout/tagout in one sentence?'. Returns 200 status in 2.47 seconds. Response contains all required fields (reply, session_id). Reply is non-empty (275 chars) and contextually relevant to lockout/tagout question (mentions LOTO, isolates, de-energises, locked and tagged, safety procedure). Anthropic (Claude) model integration with emergentintegrations library is working correctly. Model name defaults to 'claude-sonnet-4-6' as configured in _pick_model function."
+
+  - task: "POST /api/agent/chat without model_provider (default OpenAI)"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "Tested successfully without model_provider parameter (should default to OpenAI), session_id='default-1', message='Hello'. Returns 200 status in 0.70 seconds. Response contains all required fields (reply, session_id). Reply is non-empty (65 chars): 'Hello! How can I assist you with solar installation safety today?'. Default provider (OpenAI with gpt-4o-mini) is working correctly as expected when model_provider is not specified."
+
 frontend:
   # No frontend tasks to test as per instructions
 
 metadata:
   created_by: "testing_agent"
   version: "1.0"
-  test_sequence: 5
+  test_sequence: 6
   run_ui: false
 
 test_plan:
   current_focus:
-    - "POST /api/watch/log - Log Watch Alert"
-    - "GET /api/watch/history - Retrieve Watch History"
-    - "POST /api/hazards - Create Hazard Record"
-    - "Watch Alert Linking - filed_as_hazard and hazard_id update"
-    - "GET /api/hazards - List Hazard Records"
-    - "DELETE /api/watch/history - Clear Watch History"
+    - "POST /api/agent/chat with Gemini provider"
+    - "POST /api/swms/generate with Gemini provider"
+    - "POST /api/agent/chat with Anthropic (Claude) provider"
+    - "POST /api/agent/chat without model_provider (default OpenAI)"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
@@ -317,3 +363,5 @@ agent_communication:
     message: "Completed testing of NEW backend endpoint POST /api/risk/watch - Continuous Risk Monitoring. Test results: Returns 200 status in 0.99s (well under 30s requirement). All required fields present and validated: has_hazard (bool: false), severity (valid: 'none'), alert (string: empty), recommendation (string: empty), timestamp (valid ISO string). Business logic correct: when severity is 'none', has_hazard is false. AI vision integration with GPT-4o-mini working correctly. Also verified all existing endpoints still work: GET /api/ (200 OK), POST /api/status (200 OK), GET /api/status (200 OK), POST /api/swms/generate (200 OK, 4.01s), POST /api/agent/chat (200 OK, 4.29s and 5.09s), POST /api/hazards/from-voice (200 OK, 1.21s), POST /api/risk/assess (200 OK, 2.10s). All 7/7 backend tests passed. Backend is fully functional with no issues."
   - agent: "testing"
     message: "Completed comprehensive testing of NEW Watch History + Hazard persistence endpoints. Test results: (1) POST /api/watch/log: Returns 200 status. All required fields present (id, site, job_type, severity, alert, recommendation, snapshot_b64, timestamp, filed_as_hazard=false, hazard_id=null). All input fields echoed correctly. (2) GET /api/watch/history: Returns 200 status. Tested with limit, site+severity filter, and search keyword. All filters working correctly. (3) POST /api/hazards: Returns 200 status. All required fields present. source='watch' and watch_alert_id linking working correctly. (4) Watch Alert Linking: Verified that after creating hazard, the linked watch alert is updated with filed_as_hazard=true and hazard_id matching the created hazard. (5) GET /api/hazards: Returns 200 status. List contains hazards with source='watch'. (6) DELETE /api/watch/history: Returns 200 status with deleted count. Verified history is empty after delete. Also verified all existing endpoints still work: GET /api/ (200 OK), POST /api/status (200 OK), GET /api/status (200 OK), POST /api/swms/generate (200 OK, 2.49s), POST /api/agent/chat (200 OK, 4.10s and 5.28s), POST /api/hazards/from-voice (200 OK, 1.15s), POST /api/risk/assess (200 OK, 2.56s), POST /api/risk/watch (200 OK, 0.98s). All 13/13 backend tests passed. Backend is fully functional with no issues."
+  - agent: "testing"
+    message: "Completed comprehensive testing of NEW Gemini and Anthropic model integration. Test results: (1) POST /api/agent/chat (Gemini): Returns 200 status in 2.21s. Reply is non-empty (186 chars) and contextually relevant to PPE question. Gemini model (gemini-3-flash-preview) integration working correctly. (2) POST /api/swms/generate (Gemini): Returns 200 status in 5.40s. All required fields present (hazards, controls, ppe, summary) with meaningful content. All lists non-empty with 5 items each. Summary is 257 chars and contextually relevant. Gemini model integration for SWMS generation working correctly. (3) POST /api/agent/chat (Anthropic): Returns 200 status in 2.47s. Reply is non-empty (275 chars) and contextually relevant to lockout/tagout question. Anthropic (Claude) model (claude-sonnet-4-6) integration working correctly. (4) POST /api/agent/chat (Default OpenAI): Returns 200 status in 0.70s. Reply is non-empty (65 chars). Default provider (OpenAI with gpt-4o-mini) working correctly when model_provider is not specified. Also verified all existing endpoints still work: GET /api/ (200 OK), POST /api/hazards/from-voice (200 OK, 1.33s), POST /api/risk/assess (200 OK, 2.33s), POST /api/risk/watch (200 OK, 0.96s), POST /api/watch/log (200 OK), GET /api/watch/history (200 OK), POST /api/hazards (200 OK), GET /api/hazards (200 OK). All 12/12 backend tests passed. Backend is fully functional with no issues. Multi-provider LLM integration (OpenAI, Gemini, Anthropic) is working correctly across all endpoints."
