@@ -1,0 +1,64 @@
+{
+  "expo": {
+    "name": "TK SafetyGuard",
+    "slug": "frontend",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "frontend",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.emergent.whssafetyhub.wjazms",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Capture site hazards for AI safety checks",
+        "NSPhotoLibraryUsageDescription": "Attach photos to safety assessments"
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "backgroundColor": "#111111"
+      },
+      "package": "com.emergent.whssafetyhub.wjazms",
+      "permissions": ["android.permission.CAMERA", "android.permission.READ_MEDIA_IMAGES"]
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single",
+      "favicon": "./assets/images/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/splash-image.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#111111"
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Capture site hazards for AI safety checks"
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Attach photos to safety assessments"
+        }
+      ],
+      "expo-font",
+      "expo-image",
+      "expo-secure-store",
+      "expo-web-browser",
+      "expo-status-bar"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}

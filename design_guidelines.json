@@ -1,0 +1,159 @@
+{
+  "app_name": "TK SafetyGuard",
+  "personality": "5 Brutalist Mobile",
+  "personality_one_liner": "A high-clarity, industrial, function-first command center that treats safety operations like a physical control panel.",
+  "color": {
+    "surface": "#FFFFFF",
+    "onSurface": "#111111",
+    "surfaceSecondary": "#F4F4F5",
+    "onSurfaceSecondary": "#18181B",
+    "surfaceTertiary": "#E4E4E7",
+    "onSurfaceTertiary": "#27272A",
+    "surfaceInverse": "#111111",
+    "onSurfaceInverse": "#FFFFFF",
+    "brand": "#111111",
+    "onBrand": "#FFFFFF",
+    "brandPrimary": "#111111",
+    "onBrandPrimary": "#FFFFFF",
+    "brandSecondary": "#3F3F46",
+    "onBrandSecondary": "#FFFFFF",
+    "brandTertiary": "#E4E4E7",
+    "onBrandTertiary": "#111111",
+    "success": "#16A34A",
+    "onSuccess": "#FFFFFF",
+    "warning": "#F59E0B",
+    "onWarning": "#111111",
+    "error": "#DC2626",
+    "onError": "#FFFFFF",
+    "info": "#52525B",
+    "onInfo": "#FFFFFF",
+    "border": "#E4E4E7",
+    "borderStrong": "#111111",
+    "divider": "#E4E4E7",
+    "muted": "#71717A"
+  },
+  "typography": {
+    "displayFontFamily": "Space Grotesk",
+    "textFontFamily": "IBM Plex Sans",
+    "scale": {
+      "sm": 12,
+      "base": 14,
+      "lg": 16,
+      "xl": 20,
+      "2xl": 24
+    }
+  },
+  "spacing": {
+    "rule": "Use rigid grids, edge-to-edge sections, thick dividers, exposed structure, and visible spacing systems. Strong hierarchy.",
+    "xs": 4,
+    "sm": 8,
+    "md": 12,
+    "lg": 16,
+    "xl": 24,
+    "2xl": 32,
+    "3xl": 48
+  },
+  "radius_tokens": {
+    "sm": 0,
+    "md": 0,
+    "lg": 0,
+    "pill": 999
+  },
+  "shadow_tier": 0,
+  "navigation": "bottom_tabs",
+  "icon_set": "Phosphor",
+  "glassmorphism": {
+    "enabled": false,
+    "do's": [],
+    "dont's": [
+      "No glassmorphism or blur effects. Use solid colors and harsh dividers per Brutalist rules."
+    ]
+  },
+  "platform_libraries": {
+    "glass": {
+      "ios": "expo-glass-effect",
+      "android": "expo-blur",
+      "low_end_android_fallback": "solid surfaceSecondary"
+    },
+    "image": "expo-image",
+    "blur": "expo-blur",
+    "bottom_sheet": "@gorhom/bottom-sheet",
+    "animation": "react-native-reanimated",
+    "gesture": "react-native-gesture-handler"
+  },
+  "screens": [
+    {
+      "name": "Home",
+      "purpose": "A dashboard showing safety modules, recent activity, and quick stats for the warehouse.",
+      "states": {
+        "loading": "High-contrast monochrome skeleton with a rigid grid structure.",
+        "empty": "N/A - Dashboard will always have default stats or access modules.",
+        "error": "Harsh red border with oversized bold error text and a mechanical Retry button."
+      },
+      "layout": "Use a rigid grid. Top header with warehouse title. Below, 2-column or full-width bold metric cards (open incidents, active locks) with thick borders. Below that, edge-to-edge list of quick actions (AI Assess, LOTO, Access). Oversized counters."
+    },
+    {
+      "name": "AIAssess",
+      "purpose": "Camera-based AI assessment for Risk, SWMS, Worker Density, and Machinery Safety.",
+      "states": {
+        "loading": "Camera view covered with an overlay of scanning lines and mono-spaced 'ANALYSING...' text.",
+        "empty": "Camera viewfinder with harsh corner brackets. Instructions to 'Capture hazard or machinery'.",
+        "error": "Error modal with sharp corners, stating 'AI Analysis Failed. Retake Photo.' in strong typography."
+      },
+      "layout": "Camera viewfinder fills top 60%. Bottom 40% is a structured panel (or bottom sheet without drag handles, just a rigid panel) containing segmented controls to select mode (Risk, SWMS, Density, Machinery). After capture, the panel expands with risk matrix ratings (color-coded blocks), hazards found, and an export to PDF action."
+    },
+    {
+      "name": "Registers",
+      "purpose": "List of Lockout/Tagout (LOTO) locks, their statuses, and controls to add/remove.",
+      "states": {
+        "loading": "List of structural divider lines with grey blocks.",
+        "empty": "Brutalist empty state: 'NO ACTIVE LOTO LOCKS' in oversized text, with a large primary action 'REGISTER LOCK'.",
+        "error": "Text block with an error message and a reload action."
+      },
+      "layout": "Edge-to-edge list items separated by thick 2pt borders. Each row features a hard-edged status badge (e.g., Safe Green or Warning Amber), machine ID, and an action button."
+    },
+    {
+      "name": "Access",
+      "purpose": "Digital Site Access Control for sign in/out, contractor induction, and QR records.",
+      "states": {
+        "loading": "Centered spinning square or thick loader.",
+        "empty": "Large QR code placeholder with instruction to scan.",
+        "error": "Sharp error container with 'Access Denied or Failed to Load' text."
+      },
+      "layout": "Large, high-contrast QR code centered for scanning. Stacked mechanical buttons for 'Sign In', 'Sign Out', and 'Visitor Induction'. Strong structural dividers separating the access records history."
+    },
+    {
+      "name": "Profile",
+      "purpose": "User details, app settings, and document export history.",
+      "states": {
+        "loading": "Skeleton of list rows.",
+        "empty": "No documents exported yet.",
+        "error": "Failed to load profile."
+      },
+      "layout": "Simple, functional list layout with 2pt borders separating settings items. Monospaced labels for export history timestamps."
+    }
+  ],
+  "images": {
+    "logo": {
+      "url": "https://images.unsplash.com/photo-1605514449453-c6ed5f1963e7?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDk1ODF8MHwxfHNlYXJjaHwxfHxrbmlmZSUyMGZvcmslMjBjaXJjbGUlMjBsb2dvJTIwYmxhY2slMjBhbmQlMjB3aGl0ZXxlbnwwfHx8fDE3ODg1Njg3OTh8MA&ixlib=rb-4.1.0&q=85",
+      "alt": "Knife fork circle logo black and white"
+    },
+    "warehouse_background": {
+      "url": "https://images.unsplash.com/photo-1553413077-190dd305871c?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2Nzd8MHwxfHNlYXJjaHwyfHxmb29kJTIwbWFudWZhY3R1cmluZyUyMHdhcmVob3VzZSUyMGluZHVzdHJpYWx8ZW58MHx8fHwxNzg4NTY4Nzk4fDA&ixlib=rb-4.1.0&q=85",
+      "alt": "Large food manufacturing warehouse"
+    },
+    "machinery_worker": {
+      "url": "https://images.unsplash.com/photo-1645736315000-6f788915923b?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA2MTJ8MHwxfHNlYXJjaHwyfHx3YXJlaG91c2UlMjBzYWZldHklMjB3b3JrZXIlMjBtYWNoaW5lcnl8ZW58MHx8fHwxNzg4NTY4Nzk4fDA&ixlib=rb-4.1.0&q=85",
+      "alt": "Forklift and warehouse worker machinery"
+    }
+  },
+  "instructions_to_main_agent": [
+    "Implement a Brutalist Mobile LIGHT aesthetic: sharp corners (radius 0), thick structural borders (borderStrong), and no shadows or glassmorphism.",
+    "Rely heavily on Space Grotesk for large, punchy headers and IBM Plex Sans for body text. Use mono-spaced fonts for metrics, numbers, and timestamps to emphasize the industrial vibe.",
+    "For the AI Assess screen, build a mechanical, scanner-like interface. When 'Analysing', overlay the camera feed with a high-contrast mono-spaced text and scanning brackets.",
+    "Ensure all safety signal colors (red, amber, green) are used functionally, not decoratively. Apply them as solid background blocks with white text for maximum visibility in a warehouse environment.",
+    "Implement bottom tab navigation using Phosphor icons. Tab items should have a sharp, active state (e.g., solid 2pt top border when active).",
+    "Follow the 'No dead-ends' UX principle from research: every screen must have an obvious next mechanical step (e.g., 'Retake', 'Export PDF', 'Register Lock').",
+    "Include subtle haptic feedback for major actions (like capturing a photo, completing an analysis, or registering a LOTO lock)."
+  ]
+}
