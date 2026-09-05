@@ -22,6 +22,8 @@ function App() {
     if ("serviceWorker" in navigator && process.env.NODE_ENV === "production") {
       navigator.serviceWorker.register("/service-worker.js").catch(() => {});
     }
+    // Native mobile initialisation (Capacitor). No-op on web.
+    import("./lib/native").then(({ initNative }) => initNative()).catch(() => {});
   }, []);
 
   return (

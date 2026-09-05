@@ -1,0 +1,38 @@
+{
+  "appId": "com.solarsafe.pro",
+  "appName": "SolarSafe pro",
+  "webDir": "build",
+  "server": {
+    "androidScheme": "https",
+    "iosScheme": "https"
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 1200,
+      "launchAutoHide": true,
+      "backgroundColor": "#6b21a8",
+      "showSpinner": false,
+      "splashFullScreen": true,
+      "splashImmersive": true
+    },
+    "StatusBar": {
+      "style": "DARK",
+      "backgroundColor": "#6b21a8",
+      "overlaysWebView": false
+    },
+    "Camera": {
+      "presentationStyle": "fullscreen"
+    },
+    "PushNotifications": {
+      "presentationOptions": ["badge", "sound", "alert"]
+    }
+  },
+  "ios": {
+    "contentInset": "always",
+    "limitsNavigationsToAppBoundDomains": false
+  },
+  "android": {
+    "backgroundColor": "#f6f8fb",
+    "allowMixedContent": false
+  }
+}

@@ -7,6 +7,7 @@ import { useNavigate } from "react-router-dom";
 import DashboardLayout from "./DashboardLayout";
 import { useSettings } from "../../lib/settings";
 import { useToast } from "../../hooks/use-toast";
+import { isNative, platform } from "../../lib/native";
 
 const BRAND_PRESETS = [
   { color: "#6b21a8", name: "Violet" },
@@ -176,6 +177,11 @@ const SettingsPage = () => {
           </div>
           <Row icon={Smartphone} title="Install on device" description="Add SolarSafe pro to your home screen.">
             <span className="text-[11px] text-slate-500">iOS: Share → Add to Home Screen. Android: Chrome menu → Install app.</span>
+          </Row>
+          <Row icon={Info} title="Runtime" description={isNative() ? `Native mobile app · ${platform()}` : "Progressive web app · browser"}>
+            <span className={`text-[10px] uppercase font-semibold px-2 py-0.5 rounded-full ${isNative() ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"}`}>
+              {isNative() ? platform() : "web"}
+            </span>
           </Row>
         </SectionCard>
 

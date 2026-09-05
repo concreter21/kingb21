@@ -8,6 +8,7 @@ import DashboardLayout from "./DashboardLayout";
 import SignaturePad from "./SignaturePad";
 import { useToast } from "../../hooks/use-toast";
 import { exportSWMSPdf } from "../../lib/swmsPdf";
+import { isNative, nativeCameraTakePhoto, tapHaptic } from "../../lib/native";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -102,7 +103,18 @@ const RiskAssessorPage = () => {
     setCameraOn(false);
   };
 
-  const capture = () => {
+  const capture = async () => {
+    // Prefer the native camera plugin when running inside the mobile shell.
+    if (isNative()) {
+      try {
+        const { dataUrl } = await nativeCameraTakePhoto({ quality: 75 });
+        setSnapshots((prev) => [...prev, { id: Date.now(), dataUrl }]);
+        tapHaptic("light");
+        return;
+      } catch (err) {
+        console.warn("[risk-ai] native camera failed, falling back to web:", err);
+      }
+    }
     if (!videoRef.current) return;
     const video = videoRef.current;
     const canvas = document.createElement("canvas");
