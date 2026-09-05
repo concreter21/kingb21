@@ -55,6 +55,14 @@ const activityColor = {
   compliance: "bg-emerald-100 text-emerald-600",
 };
 
+const CHART_MARGIN = { top: 5, right: 5, left: 0, bottom: 0 };
+const TOOLTIP_STYLE = {
+  background: "white",
+  border: "1px solid #e2e8f0",
+  borderRadius: "8px",
+  fontSize: "12px",
+};
+
 const StatCard = ({ stat }) => {
   const TrendIcon = stat.trend === "up" ? ArrowUpRight : ArrowDownRight;
   const trendColor = stat.trend === "up" ? "text-emerald-600" : "text-rose-600";
@@ -140,7 +148,7 @@ const DashboardHome = () => {
           </div>
           <div className="h-[240px] -ml-3">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={energyProduction} margin={{ top: 5, right: 5, left: 0, bottom: 0 }}>
+              <AreaChart data={energyProduction} margin={CHART_MARGIN}>
                 <defs>
                   <linearGradient id="solarGrad" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#fbbf24" stopOpacity={0.35} />
@@ -154,14 +162,7 @@ const DashboardHome = () => {
                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
                 <XAxis dataKey="day" stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} />
                 <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} />
-                <Tooltip
-                  contentStyle={{
-                    background: "white",
-                    border: "1px solid #e2e8f0",
-                    borderRadius: "8px",
-                    fontSize: "12px",
-                  }}
-                />
+                <Tooltip contentStyle={TOOLTIP_STYLE} />
                 <Area type="monotone" dataKey="solar" stroke="#f59e0b" strokeWidth={2} fill="url(#solarGrad)" />
                 <Area type="monotone" dataKey="battery" stroke="#6366f1" strokeWidth={2} fill="url(#batteryGrad)" />
               </AreaChart>

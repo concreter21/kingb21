@@ -3,6 +3,7 @@ import { NavLink, useNavigate } from "react-router-dom";
 import AgentChat from "./AgentChat";
 import InstallPrompt from "./InstallPrompt";
 import OfflineIndicator from "./OfflineIndicator";
+import { useSettings } from "../../lib/settings";
 import {
   LayoutDashboard,
   ShieldAlert,
@@ -14,11 +15,11 @@ import {
   Radio,
   History,
   MapPin,
+  Settings as SettingsIcon,
   Sun,
   Bell,
   Search,
   LogOut,
-  Settings,
   Menu,
   X,
 } from "lucide-react";
@@ -35,11 +36,13 @@ const navItems = [
   { to: "/dashboard/loto", label: "Lockout / Tagout", icon: Lock },
   { to: "/dashboard/compliance", label: "Compliance", icon: ClipboardCheck },
   { to: "/dashboard/contacts", label: "Contact & Offices", icon: MapPin },
+  { to: "/dashboard/settings", label: "Settings", icon: SettingsIcon },
 ];
 
 const DashboardLayout = ({ children, title, subtitle, action }) => {
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { settings } = useSettings();
 
   return (
     <div className="min-h-screen bg-[#f6f8fb] flex font-inter">
@@ -57,11 +60,14 @@ const DashboardLayout = ({ children, title, subtitle, action }) => {
       } md:translate-x-0`}>
         {/* Logo */}
         <div className="h-16 flex items-center gap-2.5 px-5 border-b border-slate-100">
-          <div className="w-9 h-9 rounded-full bg-brand-700 flex items-center justify-center shadow-[0_4px_12px_-2px_rgba(107,33,168,0.5)]">
-            <span className="text-white font-bold text-[11px] tracking-tight">1K5°</span>
+          <div
+            className="w-9 h-9 rounded-full flex items-center justify-center shadow-[0_4px_12px_-2px_rgba(107,33,168,0.5)]"
+            style={{ backgroundColor: settings.brandColor }}
+          >
+            <span className="text-white font-bold text-[11px] tracking-tight">{settings.logoText}</span>
           </div>
           <div className="leading-tight flex-1">
-            <div className="text-[13px] font-semibold text-slate-900">SolarSafe pro</div>
+            <div className="text-[13px] font-semibold text-slate-900">{settings.appName}</div>
             <div className="text-[10px] text-slate-500">Safety Platform</div>
           </div>
           <button
@@ -146,8 +152,8 @@ const DashboardLayout = ({ children, title, subtitle, action }) => {
               <Bell className="w-[16px] h-[16px]" />
               <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-red-500 ring-2 ring-white" />
             </button>
-            <button className="w-9 h-9 rounded-lg hover:bg-slate-100 flex items-center justify-center text-slate-600 transition-colors">
-              <Settings className="w-[16px] h-[16px]" />
+            <button className="w-9 h-9 rounded-lg hover:bg-slate-100 flex items-center justify-center text-slate-600 transition-colors" onClick={() => navigate("/dashboard/settings")}>
+              <SettingsIcon className="w-[16px] h-[16px]" />
             </button>
             {action}
           </div>
@@ -159,8 +165,8 @@ const DashboardLayout = ({ children, title, subtitle, action }) => {
         </main>
       </div>
 
-      {/* Floating AI assistant */}
-      <AgentChat />
+      {/* Floating AI assistant (togglable in Settings) */}
+      {settings.aiAssistantEnabled && <AgentChat />}
 
       {/* PWA install prompt */}
       <InstallPrompt />

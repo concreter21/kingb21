@@ -1,8 +1,11 @@
 import React, { useEffect, useState } from "react";
 import { Download, Share, Plus, X, Smartphone, Sparkles } from "lucide-react";
+import safeStorage from "../../lib/safeStorage";
 
 const DISMISS_KEY = "solarsafe_install_dismissed_at";
 const DISMISS_TTL_MS = 1000 * 60 * 60 * 24 * 7; // 7 days
+const BANNER_DELAY_MS = 2000;
+const IOS_DELAY_MS = 3000;
 
 const isStandalone = () =>
   window.matchMedia?.("(display-mode: standalone)").matches ||
@@ -26,7 +29,7 @@ const InstallPrompt = () => {
     if (isStandalone()) return;
 
     // Check dismiss cooldown
-    const dismissedAt = parseInt(localStorage.getItem(DISMISS_KEY) || "0", 10);
+    const dismissedAt = parseInt(safeStorage.get(DISMISS_KEY) || "0", 10);
     if (dismissedAt && Date.now() - dismissedAt < DISMISS_TTL_MS) return;
 
     // Android / Chrome / Edge — use beforeinstallprompt
@@ -34,13 +37,13 @@ const InstallPrompt = () => {
       e.preventDefault();
       setDeferredPrompt(e);
       // Delay so it doesn't block first paint
-      setTimeout(() => setVisible(true), 2000);
+      setTimeout(() => setVisible(true), BANNER_DELAY_MS);
     };
     window.addEventListener("beforeinstallprompt", onPrompt);
 
     // iOS — no native prompt, show manual guide after a delay
     if (platform.isIOS && platform.isSafari) {
-      setTimeout(() => setVisible(true), 3000);
+      setTimeout(() => setVisible(true), IOS_DELAY_MS);
     }
 
     // Hide when installed
@@ -54,7 +57,7 @@ const InstallPrompt = () => {
       window.removeEventListener("beforeinstallprompt", onPrompt);
       window.removeEventListener("appinstalled", onInstalled);
     };
-  }, [platform]);
+  }, [platform.isIOS, platform.isSafari]);
 
   const install = async () => {
     if (deferredPrompt) {
@@ -64,7 +67,9 @@ const InstallPrompt = () => {
         if (choice.outcome === "accepted") {
           setVisible(false);
         }
-      } catch (_) {}
+      } catch (err) {
+        console.warn("[install-prompt] user prompt failed:", err);
+      }
       setDeferredPrompt(null);
     } else if (platform.isIOS) {
       setShowIOSGuide(true);
@@ -72,7 +77,7 @@ const InstallPrompt = () => {
   };
 
   const dismiss = () => {
-    localStorage.setItem(DISMISS_KEY, String(Date.now()));
+    safeStorage.set(DISMISS_KEY, String(Date.now()));
     setVisible(false);
     setShowIOSGuide(false);
   };

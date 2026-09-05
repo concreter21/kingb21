@@ -17,10 +17,10 @@ const riskBg = {
   high: "bg-rose-50 text-rose-700 border-rose-200",
 };
 
-const SiteMapPage = () => {
-  // Center on Germany
-  const center = [51.1657, 10.4515];
+const GERMANY_CENTER = [51.1657, 10.4515];
+const TOOLTIP_OFFSET = [0, -8];
 
+const SiteMapPage = () => {
   const counts = {
     low: activeSites.filter((s) => s.risk === "low").length,
     medium: activeSites.filter((s) => s.risk === "medium").length,
@@ -66,7 +66,7 @@ const SiteMapPage = () => {
         <div className="lg:col-span-2 bg-white rounded-xl border border-slate-200 overflow-hidden">
           <div className="h-[540px] w-full">
             <MapContainer
-              center={center}
+              center={GERMANY_CENTER}
               zoom={6}
               scrollWheelZoom={true}
               style={{ height: "100%", width: "100%" }}
@@ -87,7 +87,7 @@ const SiteMapPage = () => {
                     weight: 3,
                   }}
                 >
-                  <Tooltip direction="top" offset={[0, -8]}>
+                  <Tooltip direction="top" offset={TOOLTIP_OFFSET}>
                     <span className="font-semibold">{s.name}</span>
                   </Tooltip>
                   <Popup>

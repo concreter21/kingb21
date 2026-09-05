@@ -56,9 +56,18 @@ const HazardsPage = () => {
       setTranscript(text.trim());
     };
     rec.onend = () => setListening(false);
-    rec.onerror = () => setListening(false);
+    rec.onerror = (err) => {
+      console.warn("[voice-report] recognition error:", err?.error || err);
+      setListening(false);
+    };
     recognitionRef.current = rec;
-    return () => { try { rec.stop(); } catch (_) {} };
+    return () => {
+      try {
+        rec.stop();
+      } catch (err) {
+        console.warn("[voice-report] stop on unmount failed:", err);
+      }
+    };
   }, []);
 
   const toggleListening = () => {
@@ -69,7 +78,11 @@ const HazardsPage = () => {
     const rec = recognitionRef.current;
     if (!rec) return;
     if (listening) {
-      try { rec.stop(); } catch (_) {}
+      try {
+        rec.stop();
+      } catch (err) {
+        console.warn("[voice-report] stop failed:", err);
+      }
       setListening(false);
     } else {
       setTranscript("");
@@ -122,7 +135,11 @@ const HazardsPage = () => {
     setPhotos([]);
     setTranscript("");
     if (recognitionRef.current && listening) {
-      try { recognitionRef.current.stop(); } catch (_) {}
+      try {
+        recognitionRef.current.stop();
+      } catch (err) {
+        console.warn("[voice-report] stop on open failed:", err);
+      }
     }
   };
 

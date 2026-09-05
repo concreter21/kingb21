@@ -1,10 +1,12 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
-  Camera, Play, Square, ShieldAlert, Radio, Bell, BellOff,
-  AlertTriangle, Loader2, X, VolumeX, Volume2, CheckCircle2, FileWarning,
+  Camera, Play, Square, Radio, Loader2,
+  VolumeX, Volume2,
 } from "lucide-react";
 import axios from "axios";
 import DashboardLayout from "./DashboardLayout";
+import CameraFeedPanel from "./watch/CameraFeedPanel";
+import AlertsFeedPanel from "./watch/AlertsFeedPanel";
 import { useToast } from "../../hooks/use-toast";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
@@ -25,14 +27,10 @@ const jobOptions = [
   "Inverter Commissioning",
 ];
 
-const severityStyles = {
-  low: { border: "border-emerald-300", pill: "bg-emerald-100 text-emerald-800", ring: "ring-emerald-400" },
-  medium: { border: "border-amber-300", pill: "bg-amber-100 text-amber-800", ring: "ring-amber-400" },
-  high: { border: "border-orange-300", pill: "bg-orange-100 text-orange-800", ring: "ring-orange-400" },
-  critical: { border: "border-rose-400", pill: "bg-rose-100 text-rose-800", ring: "ring-rose-500" },
-};
-
 const INTERVAL_MS = 8000;
+
+const BEEP_FREQS = { critical: 880, high: 660, medium: 520, low: 440 };
+const beepFrequency = (severity) => BEEP_FREQS[severity] || 520;
 
 // Short beep using WebAudio
 const playBeep = (severity) => {
@@ -42,8 +40,7 @@ const playBeep = (severity) => {
     const gain = ctx.createGain();
     osc.connect(gain);
     gain.connect(ctx.destination);
-    const freq = severity === "critical" ? 880 : severity === "high" ? 660 : 520;
-    osc.frequency.value = freq;
+    osc.frequency.value = beepFrequency(severity);
     osc.type = "sine";
     gain.gain.setValueAtTime(0.001, ctx.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.25, ctx.currentTime + 0.02);
@@ -54,7 +51,9 @@ const playBeep = (severity) => {
       // second pulse
       setTimeout(() => playBeep("high"), 350);
     }
-  } catch (_) {}
+  } catch (err) {
+    console.warn("[risk-watch] beep failed:", err);
+  }
 };
 
 const RiskWatchPage = () => {
@@ -170,7 +169,9 @@ const RiskWatchPage = () => {
             snapshot_b64: frame,
           });
           newAlert.serverId = logRes.data.id;
-        } catch (_) { /* logging is best-effort */ }
+        } catch (logErr) {
+          console.warn("[risk-watch] log persistence failed:", logErr?.message || logErr);
+        }
         setAlerts((prev) => [newAlert, ...prev].slice(0, 30));
         if (soundOn) playBeep(d.severity);
         toast({
@@ -339,185 +340,22 @@ const RiskWatchPage = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
-        {/* Live camera */}
-        <div className="lg:col-span-3 bg-white rounded-xl border border-slate-200 overflow-hidden">
-          <div className="px-5 py-3.5 border-b border-slate-200 flex items-center justify-between">
-            <h3 className="text-[14px] font-semibold text-slate-900 flex items-center gap-2">
-              <Camera className="w-[16px] h-[16px] text-slate-600" />
-              Live Feed
-            </h3>
-            <div className="flex items-center gap-2">
-              {analysing && (
-                <span className="inline-flex items-center gap-1 text-[11px] text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-full">
-                  <Loader2 className="w-3 h-3 animate-spin" /> Analysing
-                </span>
-              )}
-              {watching && (
-                <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-rose-700 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-full">
-                  <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
-                  Recording
-                </span>
-              )}
-            </div>
-          </div>
-
-          <div className={`relative bg-slate-900 aspect-video flex items-center justify-center transition-shadow ${
-            highest !== "none" && watching ? `ring-4 ${severityStyles[highest]?.ring || ""} ring-inset` : ""
-          }`}>
-            <video
-              ref={videoRef}
-              playsInline
-              muted
-              className={`w-full h-full object-cover ${cameraOn ? "" : "hidden"}`}
-            />
-            {!cameraOn && (
-              <div className="text-center p-6">
-                <Camera className="w-10 h-10 text-slate-500 mx-auto mb-2" />
-                <p className="text-[13px] text-slate-300 mb-3">Start the watch to enable continuous AI monitoring</p>
-                <button
-                  onClick={startWatch}
-                  className="inline-flex items-center gap-1.5 h-10 px-4 rounded-lg bg-gradient-to-r from-indigo-600 to-purple-600 hover:opacity-90 text-white text-[13px] font-medium transition-opacity"
-                >
-                  <Play className="w-[14px] h-[14px]" />
-                  Start Camera & Watch
-                </button>
-              </div>
-            )}
-
-            {/* Overlay latest alert banner */}
-            {watching && alerts.length > 0 && (
-              <div className={`absolute top-3 left-3 right-3 rounded-lg backdrop-blur bg-slate-900/70 border ${severityStyles[alerts[0].severity]?.border} p-3 shadow-lg`}>
-                <div className="flex items-start gap-2">
-                  <AlertTriangle className="w-4 h-4 text-white flex-shrink-0 mt-0.5" />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-0.5">
-                      <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded ${severityStyles[alerts[0].severity]?.pill}`}>
-                        {alerts[0].severity}
-                      </span>
-                      <span className="text-[10px] text-white/70">Latest</span>
-                    </div>
-                    <p className="text-[12px] text-white leading-snug">{alerts[0].alert}</p>
-                    {alerts[0].recommendation && (
-                      <p className="text-[11px] text-white/80 mt-0.5 italic">→ {alerts[0].recommendation}</p>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {error && (
-            <div className="p-3 border-t border-slate-100 text-[12px] text-rose-700 bg-rose-50 flex items-center gap-2">
-              <AlertTriangle className="w-4 h-4 flex-shrink-0" />
-              {error}
-            </div>
-          )}
-        </div>
-
-        {/* Alerts feed */}
-        <div className="lg:col-span-2 bg-white rounded-xl border border-slate-200 overflow-hidden flex flex-col">
-          <div className="px-5 py-3.5 border-b border-slate-200 flex items-center justify-between">
-            <h3 className="text-[14px] font-semibold text-slate-900 flex items-center gap-2">
-              <Bell className={`w-[16px] h-[16px] ${alerts.length > 0 ? "text-rose-600" : "text-slate-600"}`} />
-              Live Alerts
-              {alerts.length > 0 && (
-                <span className="text-[11px] font-medium text-slate-500">({alerts.length})</span>
-              )}
-            </h3>
-            {alerts.length > 0 && (
-              <button
-                onClick={clearAlerts}
-                className="text-[11px] text-slate-500 hover:text-slate-800 transition-colors"
-              >
-                Clear all
-              </button>
-            )}
-          </div>
-
-          <div className="flex-1 overflow-y-auto p-4 space-y-2 max-h-[540px]">
-            {alerts.length === 0 && (
-              <div className="text-center py-10">
-                {watching ? (
-                  <>
-                    <CheckCircle2 className="w-10 h-10 text-emerald-500 mx-auto mb-2" />
-                    <p className="text-[13px] font-medium text-slate-800">All clear</p>
-                    <p className="text-[11px] text-slate-500 mt-1">
-                      AI is watching every {INTERVAL_MS / 1000}s. Alerts appear here.
-                    </p>
-                  </>
-                ) : (
-                  <>
-                    <BellOff className="w-10 h-10 text-slate-300 mx-auto mb-2" />
-                    <p className="text-[13px] text-slate-500">Start the watch to receive alerts</p>
-                  </>
-                )}
-              </div>
-            )}
-
-            {alerts.map((a) => {
-              const s = severityStyles[a.severity] || severityStyles.medium;
-              return (
-                <div
-                  key={a.id}
-                  className={`rounded-lg border ${s.border} bg-white p-3 shadow-sm hover:shadow-md transition-shadow`}
-                >
-                  <div className="flex gap-3">
-                    {a.snapshot && (
-                      <img
-                        src={a.snapshot}
-                        alt="frame"
-                        className="w-14 h-14 rounded-md object-cover border border-slate-200 flex-shrink-0"
-                      />
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded ${s.pill}`}>
-                          {a.severity}
-                        </span>
-                        <span className="text-[10px] text-slate-400">
-                          {new Date(a.timestamp).toLocaleTimeString()}
-                        </span>
-                        <button
-                          onClick={() => dismissAlert(a.id)}
-                          className="ml-auto text-slate-300 hover:text-slate-700 transition-colors"
-                        >
-                          <X className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                      <p className="text-[12px] text-slate-800 font-medium leading-snug">
-                        {a.alert}
-                      </p>
-                      {a.recommendation && (
-                        <p className="text-[11px] text-slate-600 mt-1 italic">
-                          → {a.recommendation}
-                        </p>
-                      )}
-                      <div className="mt-2 flex justify-end">
-                        {a.filed ? (
-                          <span className="inline-flex items-center gap-1 text-[10px] font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">
-                            <CheckCircle2 className="w-3 h-3" /> Filed as hazard
-                          </span>
-                        ) : (
-                          <button
-                            onClick={() => fileHazard(a)}
-                            disabled={a.filing}
-                            className="inline-flex items-center gap-1 text-[10px] font-semibold text-white bg-slate-900 hover:bg-slate-800 px-2 py-1 rounded transition-colors disabled:opacity-60"
-                          >
-                            {a.filing ? (
-                              <><Loader2 className="w-3 h-3 animate-spin" /> Filing…</>
-                            ) : (
-                              <><FileWarning className="w-3 h-3" /> File as Hazard</>
-                            )}
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
+        <CameraFeedPanel
+          videoRef={videoRef}
+          cameraOn={cameraOn}
+          watching={watching}
+          analysing={analysing}
+          error={error}
+          latestAlert={alerts[0] || null}
+          onStart={startWatch}
+        />
+        <AlertsFeedPanel
+          alerts={alerts}
+          watching={watching}
+          onDismiss={dismissAlert}
+          onClearAll={clearAlerts}
+          onFileHazard={fileHazard}
+        />
       </div>
     </DashboardLayout>
   );

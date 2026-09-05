@@ -128,10 +128,18 @@ const drawSignatures = (doc, y, signatures) => {
 
   // Embed signature images if provided
   if (signatures?.supervisor) {
-    try { doc.addImage(signatures.supervisor, "PNG", col1x, sigY, 60, 14); } catch (_) {}
+    try {
+      doc.addImage(signatures.supervisor, "PNG", col1x, sigY, 60, 14);
+    } catch (err) {
+      console.warn("[swmsPdf] supervisor signature embed failed:", err);
+    }
   }
   if (signatures?.crew) {
-    try { doc.addImage(signatures.crew, "PNG", col2x, sigY, 60, 14); } catch (_) {}
+    try {
+      doc.addImage(signatures.crew, "PNG", col2x, sigY, 60, 14);
+    } catch (err) {
+      console.warn("[swmsPdf] crew signature embed failed:", err);
+    }
   }
 
   doc.setDrawColor(148, 163, 184);

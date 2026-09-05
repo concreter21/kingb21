@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { MessageSquare, X, Send, Sparkles, Bot, User, Cpu } from "lucide-react";
 import axios from "axios";
+import safeStorage from "../../lib/safeStorage";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -14,12 +15,22 @@ const MODELS = [
   { id: "anthropic", label: "Claude Sonnet", subtitle: "Anthropic · reasoning", color: "from-orange-500 to-amber-600" },
 ];
 
-const suggestedPrompts = [
+const SUGGESTED_PROMPTS = [
   "How do I isolate DC before roof work?",
   "What PPE is required for 400kW commercial?",
   "How do I file a hazard report?",
   "Explain lockout/tagout steps",
 ];
+
+const genSessionId = () => `sess-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+const getMessageStyle = (role, isError) => {
+  if (role === "user") return "bg-slate-900 text-white rounded-tr-sm";
+  if (isError) return "bg-rose-50 border border-rose-200 text-rose-800 rounded-tl-sm";
+  return "bg-white border border-slate-200 text-slate-800 rounded-tl-sm";
+};
+
+const suggestedPrompts = SUGGESTED_PROMPTS;
 
 const AgentChat = () => {
   const [open, setOpen] = useState(false);
@@ -27,31 +38,29 @@ const AgentChat = () => {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [sessionId] = useState(() => {
-    let sid = localStorage.getItem(SESSION_KEY);
+    let sid = safeStorage.get(SESSION_KEY);
     if (!sid) {
-      sid = `sess-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-      localStorage.setItem(SESSION_KEY, sid);
+      sid = genSessionId();
+      safeStorage.set(SESSION_KEY, sid);
     }
     return sid;
   });
-  const [model, setModel] = useState(() => localStorage.getItem(MODEL_KEY) || "openai");
+  const [model, setModel] = useState(() => safeStorage.get(MODEL_KEY) || "openai");
   const [modelMenuOpen, setModelMenuOpen] = useState(false);
   const scrollRef = useRef(null);
   const inputRef = useRef(null);
 
   useEffect(() => {
-    localStorage.setItem(MODEL_KEY, model);
+    safeStorage.set(MODEL_KEY, model);
   }, [model]);
 
   useEffect(() => {
-    const saved = localStorage.getItem(MESSAGES_KEY);
-    if (saved) {
-      try { setMessages(JSON.parse(saved)); } catch (_) {}
-    }
+    const saved = safeStorage.getJSON(MESSAGES_KEY, null);
+    if (saved) setMessages(saved);
   }, []);
 
   useEffect(() => {
-    localStorage.setItem(MESSAGES_KEY, JSON.stringify(messages));
+    safeStorage.setJSON(MESSAGES_KEY, messages);
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
@@ -99,7 +108,7 @@ const AgentChat = () => {
 
   const clearChat = () => {
     setMessages([]);
-    localStorage.removeItem(MESSAGES_KEY);
+    safeStorage.remove(MESSAGES_KEY);
   };
 
   return (
@@ -223,13 +232,7 @@ const AgentChat = () => {
                   {m.role === "user" ? <User className="w-3.5 h-3.5" /> : <Bot className="w-3.5 h-3.5" />}
                 </div>
                 <div
-                  className={`max-w-[78%] px-3 py-2 rounded-2xl text-[13px] leading-relaxed whitespace-pre-wrap ${
-                    m.role === "user"
-                      ? "bg-slate-900 text-white rounded-tr-sm"
-                      : m.error
-                      ? "bg-rose-50 border border-rose-200 text-rose-800 rounded-tl-sm"
-                      : "bg-white border border-slate-200 text-slate-800 rounded-tl-sm"
-                  }`}
+                  className={`max-w-[78%] px-3 py-2 rounded-2xl text-[13px] leading-relaxed whitespace-pre-wrap ${getMessageStyle(m.role, m.error)}`}
                 >
                   {m.content}
                 </div>

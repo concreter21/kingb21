@@ -155,6 +155,40 @@ class HazardCreate(BaseModel):
     watch_alert_id: Optional[str] = None
 
 
+class AdminUser(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    name: str
+    email: str
+    role: str = "crew"  # admin | supervisor | crew
+    active: bool = True
+    created: datetime = Field(default_factory=datetime.utcnow)
+
+
+class AdminUserCreate(BaseModel):
+    name: str
+    email: str
+    role: str = "crew"
+
+
+class TwoFactorVerifyRequest(BaseModel):
+    code: str
+
+
+class TwoFactorVerifyResponse(BaseModel):
+    verified: bool
+    token: Optional[str] = None
+    message: str
+
+
+class DeletedAuditItem(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    entity: str  # hazard | swms | loto | watch_alert | user
+    original_id: Optional[str] = None
+    payload: dict = Field(default_factory=dict)
+    deleted_by: str = "system"
+    deleted_at: datetime = Field(default_factory=datetime.utcnow)
+
+
 @api_router.get("/")
 async def root():
     return {"message": "Hello World"}
@@ -615,6 +649,72 @@ async def clear_hazards():
 async def delete_watch_alert(alert_id: str):
     result = await db.watch_alerts.delete_one({"id": alert_id})
     return {"deleted": result.deleted_count}
+
+
+# ------------------------- ADMIN AREA -------------------------
+# Demo 2FA — in production, replace with TOTP (pyotp) or a hardware-key flow.
+ADMIN_2FA_CODE = os.environ.get("ADMIN_2FA_CODE", "123456")
+ADMIN_SESSION_TOKEN = "admin-session-" + str(uuid.uuid4())
+
+
+@api_router.post("/admin/verify", response_model=TwoFactorVerifyResponse)
+async def admin_verify_2fa(req: TwoFactorVerifyRequest) -> TwoFactorVerifyResponse:
+    if (req.code or "").strip() == ADMIN_2FA_CODE:
+        return TwoFactorVerifyResponse(
+            verified=True, token=ADMIN_SESSION_TOKEN, message="Access granted"
+        )
+    return TwoFactorVerifyResponse(
+        verified=False, message="Invalid code"
+    )
+
+
+@api_router.get("/admin/users", response_model=List[AdminUser])
+async def admin_list_users() -> List[AdminUser]:
+    docs = await db.admin_users.find().sort("created", -1).to_list(500)
+    for d in docs:
+        d.pop("_id", None)
+    return [AdminUser(**d) for d in docs]
+
+
+@api_router.post("/admin/users", response_model=AdminUser)
+async def admin_create_user(payload: AdminUserCreate) -> AdminUser:
+    user = AdminUser(**payload.dict())
+    await db.admin_users.insert_one(user.dict())
+    return user
+
+
+@api_router.delete("/admin/users/{user_id}")
+async def admin_delete_user(user_id: str) -> dict:
+    doc = await db.admin_users.find_one({"id": user_id})
+    if doc:
+        doc.pop("_id", None)
+        audit = DeletedAuditItem(entity="user", original_id=user_id, payload=doc, deleted_by="admin")
+        await db.deleted_audit.insert_one(audit.dict())
+    result = await db.admin_users.delete_one({"id": user_id})
+    return {"deleted": result.deleted_count}
+
+
+@api_router.get("/admin/audit", response_model=List[DeletedAuditItem])
+async def admin_get_audit(limit: int = 100) -> List[DeletedAuditItem]:
+    docs = await db.deleted_audit.find().sort("deleted_at", -1).limit(max(1, min(500, limit))).to_list(500)
+    for d in docs:
+        d.pop("_id", None)
+    return [DeletedAuditItem(**d) for d in docs]
+
+
+@api_router.delete("/admin/audit")
+async def admin_clear_audit() -> dict:
+    result = await db.deleted_audit.delete_many({})
+    return {"deleted": result.deleted_count}
+
+
+@api_router.get("/admin/watch/unsaved", response_model=List[WatchAlertLog])
+async def admin_get_unfiled_watch_alerts() -> List[WatchAlertLog]:
+    """Alerts that were captured by the camera watch but never filed as hazards."""
+    docs = await db.watch_alerts.find({"filed_as_hazard": False}).sort("timestamp", -1).to_list(500)
+    for d in docs:
+        d.pop("_id", None)
+    return [WatchAlertLog(**d) for d in docs]
 
 
 app.include_router(api_router)

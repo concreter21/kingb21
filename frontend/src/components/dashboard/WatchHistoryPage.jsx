@@ -239,12 +239,13 @@ const WatchHistoryPage = () => {
 
       {/* Timeline */}
       <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-        {loading && alerts.length === 0 ? (
+        {loading && alerts.length === 0 && (
           <div className="p-10 text-center text-slate-500">
             <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2 text-slate-400" />
             <p className="text-[13px]">Loading history…</p>
           </div>
-        ) : alerts.length === 0 ? (
+        )}
+        {!loading && alerts.length === 0 && (
           <div className="p-14 text-center">
             <CalendarClock className="w-10 h-10 text-slate-300 mx-auto mb-3" />
             <p className="text-[14px] font-semibold text-slate-800">No alerts recorded yet</p>
@@ -252,7 +253,8 @@ const WatchHistoryPage = () => {
               Start a Risk Watch session — every hazard the AI detects will land here.
             </p>
           </div>
-        ) : (
+        )}
+        {alerts.length > 0 && (
           <div className="p-5 space-y-6">
             {grouped.map(([day, items]) => (
               <div key={day}>

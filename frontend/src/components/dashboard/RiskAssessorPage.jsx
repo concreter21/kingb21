@@ -34,16 +34,16 @@ const riskColors = {
   critical: "bg-rose-50 text-rose-700 border-rose-200",
 };
 
+const stepDotClass = (active, done) => {
+  if (done) return "bg-emerald-500 border-emerald-500 text-white";
+  if (active) return "bg-indigo-600 border-indigo-600 text-white";
+  return "bg-white border-slate-200 text-slate-400";
+};
+
 const StepDot = ({ active, done, num, label }) => (
   <div className="flex items-center gap-2">
     <div
-      className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-semibold border-2 transition-colors ${
-        done
-          ? "bg-emerald-500 border-emerald-500 text-white"
-          : active
-          ? "bg-indigo-600 border-indigo-600 text-white"
-          : "bg-white border-slate-200 text-slate-400"
-      }`}
+      className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-semibold border-2 transition-colors ${stepDotClass(active, done)}`}
     >
       {done ? <CheckCircle2 className="w-3.5 h-3.5" /> : num}
     </div>
@@ -188,7 +188,12 @@ const RiskAssessorPage = () => {
   };
 
   // Step tracking
-  const step = assessment ? 3 : snapshots.length > 0 ? 2 : 1;
+  const computeStep = () => {
+    if (assessment) return 3;
+    if (snapshots.length > 0) return 2;
+    return 1;
+  };
+  const step = computeStep();
 
   return (
     <DashboardLayout
@@ -408,7 +413,7 @@ const RiskAssessorPage = () => {
                     </div>
                     <ul className="space-y-1">
                       {assessment.observations.map((o, i) => (
-                        <li key={i} className="text-[12px] text-slate-700 flex gap-2">
+                        <li key={`obs-${i}-${o.slice(0, 20)}`} className="text-[12px] text-slate-700 flex gap-2">
                           <span className="text-slate-400">›</span><span>{o}</span>
                         </li>
                       ))}
@@ -423,7 +428,7 @@ const RiskAssessorPage = () => {
                   </div>
                   <ul className="space-y-1">
                     {assessment.hazards.map((h, i) => (
-                      <li key={i} className="text-[12px] text-slate-700 flex gap-2">
+                      <li key={`haz-${i}-${h.slice(0, 20)}`} className="text-[12px] text-slate-700 flex gap-2">
                         <span className="text-rose-500">•</span><span>{h}</span>
                       </li>
                     ))}
@@ -437,7 +442,7 @@ const RiskAssessorPage = () => {
                   </div>
                   <ul className="space-y-1">
                     {assessment.controls.map((c, i) => (
-                      <li key={i} className="text-[12px] text-slate-700 flex gap-2">
+                      <li key={`ctl-${i}-${c.slice(0, 20)}`} className="text-[12px] text-slate-700 flex gap-2">
                         <span className="text-emerald-500">✓</span><span>{c}</span>
                       </li>
                     ))}
@@ -451,7 +456,7 @@ const RiskAssessorPage = () => {
                   </div>
                   <div className="flex flex-wrap gap-1.5">
                     {assessment.ppe.map((p, i) => (
-                      <span key={i} className="text-[11px] px-2.5 py-1 rounded-full bg-amber-50 text-amber-800 border border-amber-200">
+                      <span key={`ppe-${i}-${p}`} className="text-[11px] px-2.5 py-1 rounded-full bg-amber-50 text-amber-800 border border-amber-200">
                         {p}
                       </span>
                     ))}
