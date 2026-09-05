@@ -6,6 +6,7 @@ import SiteMapPage from "./components/dashboard/SiteMapPage";
 import RiskAssessorPage from "./components/dashboard/RiskAssessorPage";
 import RiskWatchPage from "./components/dashboard/RiskWatchPage";
 import WatchHistoryPage from "./components/dashboard/WatchHistoryPage";
+import ContactsPage from "./components/dashboard/ContactsPage";
 import SWMSPage from "./components/dashboard/SWMSPage";
 import HazardsPage from "./components/dashboard/HazardsPage";
 import LOTOPage from "./components/dashboard/LOTOPage";
@@ -27,6 +28,7 @@ function App() {
           <Route path="/dashboard/hazards" element={<HazardsPage />} />
           <Route path="/dashboard/loto" element={<LOTOPage />} />
           <Route path="/dashboard/compliance" element={<CompliancePage />} />
+          <Route path="/dashboard/contacts" element={<ContactsPage />} />
         </Routes>
       </BrowserRouter>
       <Toaster />

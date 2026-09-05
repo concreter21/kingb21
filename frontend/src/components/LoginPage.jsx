@@ -60,7 +60,7 @@ const LoginPage = () => {
       <div className="w-full max-w-[420px] bg-white rounded-2xl shadow-[0_10px_40px_-10px_rgba(15,23,42,0.15)] border border-slate-100 px-8 py-9 sm:px-10 sm:py-10">
         {/* Logo */}
         <div className="flex justify-center mb-5">
-          <div className="relative w-[74px] h-[74px] rounded-full bg-[#6b21a8] flex items-center justify-center shadow-[0_8px_24px_-6px_rgba(107,33,168,0.55)]">
+          <div className="relative w-[74px] h-[74px] rounded-full bg-brand-700 flex items-center justify-center shadow-[0_8px_24px_-6px_rgba(107,33,168,0.55)]">
             <span className="text-white font-bold text-[22px] tracking-tight leading-none">
               1K5
             </span>

@@ -1,0 +1,32 @@
+{
+  "short_name": "SolarSafe pro",
+  "name": "1KOMMA5° SolarSafe pro",
+  "description": "Safety management platform for solar installation teams — SWMS, hazard reporting, AI risk assessment and compliance.",
+  "icons": [
+    {
+      "src": "favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    },
+    {
+      "src": "icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": ".",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#6b21a8",
+  "background_color": "#f6f8fb",
+  "categories": ["business", "productivity", "utilities"],
+  "lang": "en"
+}

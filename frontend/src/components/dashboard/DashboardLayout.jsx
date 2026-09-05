@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import AgentChat from "./AgentChat";
 import {
@@ -11,11 +11,14 @@ import {
   Sparkles,
   Radio,
   History,
+  MapPin,
   Sun,
   Bell,
   Search,
   LogOut,
   Settings,
+  Menu,
+  X,
 } from "lucide-react";
 import { currentUser } from "../../mock";
 
@@ -29,33 +32,52 @@ const navItems = [
   { to: "/dashboard/hazards", label: "Hazards", icon: ShieldAlert },
   { to: "/dashboard/loto", label: "Lockout / Tagout", icon: Lock },
   { to: "/dashboard/compliance", label: "Compliance", icon: ClipboardCheck },
+  { to: "/dashboard/contacts", label: "Contact & Offices", icon: MapPin },
 ];
 
 const DashboardLayout = ({ children, title, subtitle, action }) => {
   const navigate = useNavigate();
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
     <div className="min-h-screen bg-[#f6f8fb] flex font-inter">
+      {/* Mobile overlay */}
+      {mobileOpen && (
+        <div
+          onClick={() => setMobileOpen(false)}
+          className="fixed inset-0 bg-slate-900/50 z-40 md:hidden"
+        />
+      )}
+
       {/* Sidebar */}
-      <aside className="hidden md:flex md:flex-col w-[240px] bg-white border-r border-slate-200 fixed inset-y-0 left-0">
+      <aside className={`flex flex-col w-[240px] bg-white border-r border-slate-200 fixed inset-y-0 left-0 z-50 transition-transform duration-200 ${
+        mobileOpen ? "translate-x-0" : "-translate-x-full"
+      } md:translate-x-0`}>
         {/* Logo */}
         <div className="h-16 flex items-center gap-2.5 px-5 border-b border-slate-100">
-          <div className="w-9 h-9 rounded-full bg-[#6b21a8] flex items-center justify-center shadow-[0_4px_12px_-2px_rgba(107,33,168,0.5)]">
+          <div className="w-9 h-9 rounded-full bg-brand-700 flex items-center justify-center shadow-[0_4px_12px_-2px_rgba(107,33,168,0.5)]">
             <span className="text-white font-bold text-[11px] tracking-tight">1K5°</span>
           </div>
-          <div className="leading-tight">
+          <div className="leading-tight flex-1">
             <div className="text-[13px] font-semibold text-slate-900">SolarSafe pro</div>
-            <div className="text-[10px] text-slate-500">Safety Platform</div>
+            <div className="text-[10px] text-slate-500">1KOMMA5° · Safety</div>
           </div>
+          <button
+            onClick={() => setMobileOpen(false)}
+            className="md:hidden text-slate-400 hover:text-slate-800 p-1"
+          >
+            <X className="w-4 h-4" />
+          </button>
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 px-3 py-4 space-y-0.5">
+        <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
           {navItems.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
               end={item.end}
+              onClick={() => setMobileOpen(false)}
               className={({ isActive }) =>
                 `flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium transition-colors ${
                   isActive
@@ -94,12 +116,18 @@ const DashboardLayout = ({ children, title, subtitle, action }) => {
       {/* Main content */}
       <div className="flex-1 md:ml-[240px] flex flex-col min-w-0">
         {/* Top bar */}
-        <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-5 md:px-8 sticky top-0 z-30">
+        <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 md:px-8 sticky top-0 z-30">
           <div className="flex items-center gap-3 min-w-0">
+            <button
+              onClick={() => setMobileOpen(true)}
+              className="md:hidden w-9 h-9 rounded-lg hover:bg-slate-100 flex items-center justify-center text-slate-600 -ml-1"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
             <div className="min-w-0">
-              <h1 className="text-[18px] font-semibold text-slate-900 leading-tight truncate">{title}</h1>
+              <h1 className="text-[16px] md:text-[18px] font-semibold text-slate-900 leading-tight truncate">{title}</h1>
               {subtitle && (
-                <p className="text-[12px] text-slate-500 truncate">{subtitle}</p>
+                <p className="text-[11px] md:text-[12px] text-slate-500 truncate">{subtitle}</p>
               )}
             </div>
           </div>

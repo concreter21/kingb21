@@ -1,9 +1,36 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
 .App {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  min-height: 100vh;
+  min-height: 100dvh;
 }
 
 .font-inter {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+/* iOS / Android safe-area handling */
+@supports (padding: env(safe-area-inset-top)) {
+  .App {
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+/* Prevent iOS input zoom */
+input, select, textarea {
+  font-size: 16px;
+}
+@media (min-width: 640px) {
+  input, select, textarea {
+    font-size: inherit;
+  }
+}
+
+/* Larger tap targets on touch */
+@media (pointer: coarse) {
+  button, a[role="button"] {
+    min-height: 40px;
+  }
 }
