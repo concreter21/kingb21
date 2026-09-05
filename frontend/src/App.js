@@ -5,6 +5,7 @@ import DashboardHome from "./components/dashboard/DashboardHome";
 import SiteMapPage from "./components/dashboard/SiteMapPage";
 import RiskAssessorPage from "./components/dashboard/RiskAssessorPage";
 import RiskWatchPage from "./components/dashboard/RiskWatchPage";
+import WatchHistoryPage from "./components/dashboard/WatchHistoryPage";
 import SWMSPage from "./components/dashboard/SWMSPage";
 import HazardsPage from "./components/dashboard/HazardsPage";
 import LOTOPage from "./components/dashboard/LOTOPage";
@@ -21,6 +22,7 @@ function App() {
           <Route path="/dashboard/map" element={<SiteMapPage />} />
           <Route path="/dashboard/risk-ai" element={<RiskAssessorPage />} />
           <Route path="/dashboard/risk-watch" element={<RiskWatchPage />} />
+          <Route path="/dashboard/watch-history" element={<WatchHistoryPage />} />
           <Route path="/dashboard/swms" element={<SWMSPage />} />
           <Route path="/dashboard/hazards" element={<HazardsPage />} />
           <Route path="/dashboard/loto" element={<LOTOPage />} />

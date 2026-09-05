@@ -849,6 +849,553 @@ def test_risk_watch_endpoint():
         print_error(f"Request failed: {str(e)}")
         return False
 
+def test_watch_log_endpoint():
+    """Test POST /api/watch/log endpoint"""
+    print_test_header("POST /api/watch/log - Log Watch Alert")
+    
+    try:
+        # Test data from review request
+        test_data = {
+            "site": "Warehouse Array – Hamburg Hafen",
+            "job_type": "Warehouse Ballasted Array",
+            "severity": "critical",
+            "alert": "Worker without harness near unprotected edge",
+            "recommendation": "Attach fall-arrest immediately and clear the area",
+            "snapshot_b64": "iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAIAAABLbSncAAAADklEQVQIW2NgYGBgAAAABQABDQottAAAAABJRU5ErkJggg=="
+        }
+        
+        print(f"Request payload:")
+        print(json.dumps(test_data, indent=2))
+        
+        response = requests.post(
+            f"{BACKEND_URL}/watch/log",
+            json=test_data,
+            timeout=10
+        )
+        
+        print(f"\nStatus Code: {response.status_code}")
+        
+        if response.status_code == 200:
+            print_success("Watch log endpoint returned 200 status")
+        else:
+            print_error(f"Expected 200, got {response.status_code}")
+            print(f"Response body: {response.text}")
+            return False, None
+        
+        # Parse and validate response
+        try:
+            data = response.json()
+            print(f"\nResponse structure:")
+            print(json.dumps(data, indent=2))
+            
+            # Check required fields
+            required_fields = ["id", "site", "job_type", "severity", "alert", "recommendation", "snapshot_b64", "timestamp", "filed_as_hazard", "hazard_id"]
+            all_fields_present = True
+            
+            for field in required_fields:
+                if field in data:
+                    print_success(f"Response contains '{field}' field")
+                else:
+                    print_error(f"Response missing '{field}' field")
+                    all_fields_present = False
+            
+            if not all_fields_present:
+                return False, None
+            
+            # Validate id is a UUID string
+            if isinstance(data["id"], str) and len(data["id"]) > 0:
+                print_success(f"'id' is a non-empty string (UUID): {data['id']}")
+            else:
+                print_error("'id' is not a valid UUID string")
+                return False, None
+            
+            # Validate input fields are echoed correctly
+            if data["site"] == test_data["site"]:
+                print_success(f"'site' matches input: {data['site']}")
+            else:
+                print_error(f"'site' mismatch. Expected: {test_data['site']}, Got: {data['site']}")
+                return False, None
+            
+            if data["job_type"] == test_data["job_type"]:
+                print_success(f"'job_type' matches input: {data['job_type']}")
+            else:
+                print_error(f"'job_type' mismatch. Expected: {test_data['job_type']}, Got: {data['job_type']}")
+                return False, None
+            
+            if data["severity"] == test_data["severity"]:
+                print_success(f"'severity' matches input: {data['severity']}")
+            else:
+                print_error(f"'severity' mismatch. Expected: {test_data['severity']}, Got: {data['severity']}")
+                return False, None
+            
+            if data["alert"] == test_data["alert"]:
+                print_success(f"'alert' matches input: {data['alert']}")
+            else:
+                print_error(f"'alert' mismatch. Expected: {test_data['alert']}, Got: {data['alert']}")
+                return False, None
+            
+            if data["recommendation"] == test_data["recommendation"]:
+                print_success(f"'recommendation' matches input: {data['recommendation']}")
+            else:
+                print_error(f"'recommendation' mismatch. Expected: {test_data['recommendation']}, Got: {data['recommendation']}")
+                return False, None
+            
+            if data["snapshot_b64"] == test_data["snapshot_b64"]:
+                print_success(f"'snapshot_b64' matches input")
+            else:
+                print_error(f"'snapshot_b64' mismatch")
+                return False, None
+            
+            # Validate timestamp is an ISO string
+            if isinstance(data["timestamp"], str):
+                try:
+                    from datetime import datetime
+                    datetime.fromisoformat(data["timestamp"].replace('Z', '+00:00'))
+                    print_success(f"'timestamp' is a valid ISO string: {data['timestamp']}")
+                except ValueError:
+                    print_error(f"'timestamp' is not a valid ISO datetime string: {data['timestamp']}")
+                    return False, None
+            else:
+                print_error(f"'timestamp' must be a string, got: {type(data['timestamp'])}")
+                return False, None
+            
+            # Validate filed_as_hazard is false initially
+            if data["filed_as_hazard"] == False:
+                print_success(f"'filed_as_hazard' is False (as expected initially)")
+            else:
+                print_error(f"'filed_as_hazard' should be False initially, got: {data['filed_as_hazard']}")
+                return False, None
+            
+            # Validate hazard_id is null initially
+            if data["hazard_id"] is None:
+                print_success(f"'hazard_id' is null (as expected initially)")
+            else:
+                print_error(f"'hazard_id' should be null initially, got: {data['hazard_id']}")
+                return False, None
+            
+            # Return the watch alert ID for use in subsequent tests
+            return True, data["id"]
+            
+        except json.JSONDecodeError as e:
+            print_error(f"Failed to parse JSON response: {str(e)}")
+            print(f"Response text: {response.text}")
+            return False, None
+            
+    except Exception as e:
+        print_error(f"Request failed: {str(e)}")
+        return False, None
+
+
+def test_watch_history_endpoint(watch_alert_id: str = None):
+    """Test GET /api/watch/history endpoint with various filters"""
+    print_test_header("GET /api/watch/history - Get Watch History (with limit)")
+    
+    try:
+        # Test 1: Get history with limit
+        response = requests.get(
+            f"{BACKEND_URL}/watch/history?limit=10",
+            timeout=10
+        )
+        
+        print(f"Status Code: {response.status_code}")
+        
+        if response.status_code == 200:
+            print_success("Watch history endpoint returned 200 status")
+        else:
+            print_error(f"Expected 200, got {response.status_code}")
+            print(f"Response body: {response.text}")
+            return False
+        
+        # Parse and validate response
+        try:
+            data = response.json()
+            print(f"\nResponse: JSON list with {len(data)} items")
+            
+            if isinstance(data, list):
+                print_success(f"Response is a list")
+                
+                if len(data) > 0:
+                    print_success(f"List contains {len(data)} alert(s)")
+                    print(f"Sample item: {json.dumps(data[0], indent=2)}")
+                    
+                    # Check if the alert we just logged is in the list (should be newest first)
+                    if watch_alert_id:
+                        found = any(item.get("id") == watch_alert_id for item in data)
+                        if found:
+                            print_success(f"Found the alert we just logged (id: {watch_alert_id})")
+                        else:
+                            print_warning(f"Could not find the alert we just logged (id: {watch_alert_id})")
+                else:
+                    print_warning("List is empty (may be expected if no alerts logged yet)")
+            else:
+                print_error("Response is not a list")
+                return False
+            
+        except json.JSONDecodeError as e:
+            print_error(f"Failed to parse JSON response: {str(e)}")
+            print(f"Response text: {response.text}")
+            return False
+        
+        # Test 2: Filter by site and severity
+        print_test_header("GET /api/watch/history - Filter by site and severity")
+        
+        response2 = requests.get(
+            f"{BACKEND_URL}/watch/history?site=Warehouse%20Array%20%E2%80%93%20Hamburg%20Hafen&severity=critical",
+            timeout=10
+        )
+        
+        print(f"Status Code: {response2.status_code}")
+        
+        if response2.status_code == 200:
+            print_success("Watch history with filters returned 200 status")
+            
+            data2 = response2.json()
+            print(f"Response: JSON list with {len(data2)} items")
+            
+            if isinstance(data2, list):
+                print_success(f"Response is a list (filtered)")
+                
+                # Validate that all items match the filter
+                if len(data2) > 0:
+                    all_match = True
+                    for item in data2:
+                        if item.get("site") != "Warehouse Array – Hamburg Hafen":
+                            print_error(f"Item site does not match filter: {item.get('site')}")
+                            all_match = False
+                        if item.get("severity") != "critical":
+                            print_error(f"Item severity does not match filter: {item.get('severity')}")
+                            all_match = False
+                    
+                    if all_match:
+                        print_success(f"All {len(data2)} items match the filter criteria")
+                else:
+                    print_warning("Filtered list is empty")
+            else:
+                print_error("Response is not a list")
+                return False
+        else:
+            print_error(f"Expected 200, got {response2.status_code}")
+            return False
+        
+        # Test 3: Search by keyword
+        print_test_header("GET /api/watch/history - Search by keyword")
+        
+        response3 = requests.get(
+            f"{BACKEND_URL}/watch/history?search=harness",
+            timeout=10
+        )
+        
+        print(f"Status Code: {response3.status_code}")
+        
+        if response3.status_code == 200:
+            print_success("Watch history with search returned 200 status")
+            
+            data3 = response3.json()
+            print(f"Response: JSON list with {len(data3)} items")
+            
+            if isinstance(data3, list):
+                print_success(f"Response is a list (search results)")
+                
+                # Validate that all items contain the search keyword in alert
+                if len(data3) > 0:
+                    all_match = True
+                    for item in data3:
+                        if "harness" not in item.get("alert", "").lower():
+                            print_error(f"Item alert does not contain 'harness': {item.get('alert')}")
+                            all_match = False
+                    
+                    if all_match:
+                        print_success(f"All {len(data3)} items contain 'harness' in alert")
+                        print(f"Sample: {data3[0].get('alert')}")
+                else:
+                    print_warning("Search results are empty")
+            else:
+                print_error("Response is not a list")
+                return False
+        else:
+            print_error(f"Expected 200, got {response3.status_code}")
+            return False
+        
+        return True
+        
+    except Exception as e:
+        print_error(f"Request failed: {str(e)}")
+        return False
+
+
+def test_hazards_create_endpoint(watch_alert_id: str = None):
+    """Test POST /api/hazards endpoint with watch_alert_id linking"""
+    print_test_header("POST /api/hazards - Create Hazard (linked to watch alert)")
+    
+    try:
+        # Test data from review request
+        test_data = {
+            "site": "Warehouse Array – Hamburg Hafen",
+            "hazard_type": "Worker without harness near unprotected edge",
+            "severity": "critical",
+            "description": "Auto-filed from watch alert",
+            "snapshot_b64": "iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAIAAABLbSncAAAADklEQVQIW2NgYGBgAAAABQABDQottAAAAABJRU5ErkJggg==",
+            "source": "watch",
+            "watch_alert_id": watch_alert_id
+        }
+        
+        print(f"Request payload:")
+        print(json.dumps(test_data, indent=2))
+        
+        response = requests.post(
+            f"{BACKEND_URL}/hazards",
+            json=test_data,
+            timeout=10
+        )
+        
+        print(f"\nStatus Code: {response.status_code}")
+        
+        if response.status_code == 200:
+            print_success("Hazards create endpoint returned 200 status")
+        else:
+            print_error(f"Expected 200, got {response.status_code}")
+            print(f"Response body: {response.text}")
+            return False, None
+        
+        # Parse and validate response
+        try:
+            data = response.json()
+            print(f"\nResponse structure:")
+            print(json.dumps(data, indent=2))
+            
+            # Check required fields
+            required_fields = ["id", "site", "hazard_type", "severity", "status", "reported_by", "description", "snapshot_b64", "source", "watch_alert_id", "timestamp"]
+            all_fields_present = True
+            
+            for field in required_fields:
+                if field in data:
+                    print_success(f"Response contains '{field}' field")
+                else:
+                    print_error(f"Response missing '{field}' field")
+                    all_fields_present = False
+            
+            if not all_fields_present:
+                return False, None
+            
+            # Validate id is a UUID string
+            if isinstance(data["id"], str) and len(data["id"]) > 0:
+                print_success(f"'id' is a non-empty string (UUID): {data['id']}")
+            else:
+                print_error("'id' is not a valid UUID string")
+                return False, None
+            
+            # Validate source is "watch"
+            if data["source"] == "watch":
+                print_success(f"'source' is 'watch' as expected")
+            else:
+                print_error(f"'source' should be 'watch', got: {data['source']}")
+                return False, None
+            
+            # Validate watch_alert_id matches input
+            if watch_alert_id and data["watch_alert_id"] == watch_alert_id:
+                print_success(f"'watch_alert_id' matches input: {data['watch_alert_id']}")
+            else:
+                print_warning(f"'watch_alert_id' mismatch or not provided. Expected: {watch_alert_id}, Got: {data['watch_alert_id']}")
+            
+            # Return the hazard ID for verification
+            return True, data["id"]
+            
+        except json.JSONDecodeError as e:
+            print_error(f"Failed to parse JSON response: {str(e)}")
+            print(f"Response text: {response.text}")
+            return False, None
+            
+    except Exception as e:
+        print_error(f"Request failed: {str(e)}")
+        return False, None
+
+
+def test_watch_alert_linked_to_hazard(watch_alert_id: str, hazard_id: str):
+    """Verify that the watch alert is now linked to the hazard"""
+    print_test_header("Verify Watch Alert Linking - Check filed_as_hazard and hazard_id")
+    
+    try:
+        # Get the watch history to find our alert
+        response = requests.get(
+            f"{BACKEND_URL}/watch/history?limit=100",
+            timeout=10
+        )
+        
+        print(f"Status Code: {response.status_code}")
+        
+        if response.status_code == 200:
+            print_success("Watch history endpoint returned 200 status")
+        else:
+            print_error(f"Expected 200, got {response.status_code}")
+            return False
+        
+        data = response.json()
+        
+        # Find our watch alert
+        watch_alert = None
+        for item in data:
+            if item.get("id") == watch_alert_id:
+                watch_alert = item
+                break
+        
+        if not watch_alert:
+            print_error(f"Could not find watch alert with id: {watch_alert_id}")
+            return False
+        
+        print(f"\nFound watch alert:")
+        print(json.dumps(watch_alert, indent=2))
+        
+        # Verify filed_as_hazard is now True
+        if watch_alert.get("filed_as_hazard") == True:
+            print_success(f"'filed_as_hazard' is True (correctly updated)")
+        else:
+            print_error(f"'filed_as_hazard' should be True, got: {watch_alert.get('filed_as_hazard')}")
+            return False
+        
+        # Verify hazard_id matches the hazard we created
+        if watch_alert.get("hazard_id") == hazard_id:
+            print_success(f"'hazard_id' matches the created hazard: {hazard_id}")
+        else:
+            print_error(f"'hazard_id' mismatch. Expected: {hazard_id}, Got: {watch_alert.get('hazard_id')}")
+            return False
+        
+        return True
+        
+    except Exception as e:
+        print_error(f"Request failed: {str(e)}")
+        return False
+
+
+def test_hazards_list_endpoint():
+    """Test GET /api/hazards endpoint"""
+    print_test_header("GET /api/hazards - List Hazards")
+    
+    try:
+        response = requests.get(
+            f"{BACKEND_URL}/hazards?limit=10",
+            timeout=10
+        )
+        
+        print(f"Status Code: {response.status_code}")
+        
+        if response.status_code == 200:
+            print_success("Hazards list endpoint returned 200 status")
+        else:
+            print_error(f"Expected 200, got {response.status_code}")
+            print(f"Response body: {response.text}")
+            return False
+        
+        # Parse and validate response
+        try:
+            data = response.json()
+            print(f"\nResponse: JSON list with {len(data)} items")
+            
+            if isinstance(data, list):
+                print_success(f"Response is a list")
+                
+                if len(data) > 0:
+                    print_success(f"List contains {len(data)} hazard(s)")
+                    print(f"Sample item: {json.dumps(data[0], indent=2)}")
+                    
+                    # Check if any hazard has source="watch"
+                    watch_hazards = [h for h in data if h.get("source") == "watch"]
+                    if watch_hazards:
+                        print_success(f"Found {len(watch_hazards)} hazard(s) with source='watch'")
+                else:
+                    print_warning("List is empty (may be expected if no hazards created yet)")
+                
+                return True
+            else:
+                print_error("Response is not a list")
+                return False
+            
+        except json.JSONDecodeError as e:
+            print_error(f"Failed to parse JSON response: {str(e)}")
+            print(f"Response text: {response.text}")
+            return False
+            
+    except Exception as e:
+        print_error(f"Request failed: {str(e)}")
+        return False
+
+
+def test_watch_history_delete_endpoint():
+    """Test DELETE /api/watch/history endpoint"""
+    print_test_header("DELETE /api/watch/history - Clear Watch History")
+    
+    try:
+        response = requests.delete(
+            f"{BACKEND_URL}/watch/history",
+            timeout=10
+        )
+        
+        print(f"Status Code: {response.status_code}")
+        
+        if response.status_code == 200:
+            print_success("Watch history delete endpoint returned 200 status")
+        else:
+            print_error(f"Expected 200, got {response.status_code}")
+            print(f"Response body: {response.text}")
+            return False
+        
+        # Parse and validate response
+        try:
+            data = response.json()
+            print(f"\nResponse structure:")
+            print(json.dumps(data, indent=2))
+            
+            # Check for "deleted" field
+            if "deleted" in data:
+                print_success(f"Response contains 'deleted' field")
+                
+                deleted_count = data["deleted"]
+                if isinstance(deleted_count, int) and deleted_count >= 1:
+                    print_success(f"Deleted {deleted_count} alert(s)")
+                else:
+                    print_warning(f"Deleted count is {deleted_count} (may be 0 if no alerts existed)")
+            else:
+                print_error("Response missing 'deleted' field")
+                return False
+            
+        except json.JSONDecodeError as e:
+            print_error(f"Failed to parse JSON response: {str(e)}")
+            print(f"Response text: {response.text}")
+            return False
+        
+        # Verify that GET history now returns empty
+        print_test_header("Verify Watch History is Empty After Delete")
+        
+        verify_response = requests.get(
+            f"{BACKEND_URL}/watch/history?limit=100",
+            timeout=10
+        )
+        
+        print(f"Status Code: {verify_response.status_code}")
+        
+        if verify_response.status_code == 200:
+            print_success("Watch history endpoint returned 200 status")
+            
+            verify_data = verify_response.json()
+            
+            if isinstance(verify_data, list):
+                if len(verify_data) == 0:
+                    print_success("Watch history is now empty (as expected after delete)")
+                    return True
+                else:
+                    print_error(f"Watch history should be empty but contains {len(verify_data)} items")
+                    return False
+            else:
+                print_error("Response is not a list")
+                return False
+        else:
+            print_error(f"Expected 200, got {verify_response.status_code}")
+            return False
+            
+    except Exception as e:
+        print_error(f"Request failed: {str(e)}")
+        return False
+
+
 def run_all_tests():
     """Run all backend tests and report results"""
     print(f"\n{Colors.BLUE}{'='*80}{Colors.END}")
@@ -858,26 +1405,39 @@ def run_all_tests():
     
     results = {}
     
-    # Test 1: Root endpoint
+    # Test existing endpoints first
     results["GET /api/"] = test_root_endpoint()
-    
-    # Test 2: Status endpoints
     results["Status endpoints"] = test_status_endpoints()
-    
-    # Test 3: SWMS generation endpoint
     results["POST /api/swms/generate"] = test_swms_generate_endpoint()
-    
-    # Test 4: Agent chat endpoint
     results["POST /api/agent/chat"] = test_agent_chat_endpoint()
-    
-    # Test 5: Voice hazard endpoint
     results["POST /api/hazards/from-voice"] = test_hazards_from_voice_endpoint()
-    
-    # Test 6: Risk assessment endpoint
     results["POST /api/risk/assess"] = test_risk_assess_endpoint()
-    
-    # Test 7: Risk watch endpoint (NEW)
     results["POST /api/risk/watch"] = test_risk_watch_endpoint()
+    
+    # Test NEW Watch History + Hazard persistence endpoints
+    # Step 1: Log a watch alert
+    watch_log_result, watch_alert_id = test_watch_log_endpoint()
+    results["POST /api/watch/log"] = watch_log_result
+    
+    # Step 2: Get watch history with various filters
+    results["GET /api/watch/history"] = test_watch_history_endpoint(watch_alert_id)
+    
+    # Step 3: Create a hazard linked to the watch alert
+    hazards_create_result, hazard_id = test_hazards_create_endpoint(watch_alert_id)
+    results["POST /api/hazards"] = hazards_create_result
+    
+    # Step 4: Verify the watch alert is now linked to the hazard
+    if watch_alert_id and hazard_id:
+        results["Watch Alert Linking"] = test_watch_alert_linked_to_hazard(watch_alert_id, hazard_id)
+    else:
+        results["Watch Alert Linking"] = False
+        print_error("Skipping watch alert linking test (missing IDs)")
+    
+    # Step 5: List hazards
+    results["GET /api/hazards"] = test_hazards_list_endpoint()
+    
+    # Step 6: Delete watch history
+    results["DELETE /api/watch/history"] = test_watch_history_delete_endpoint()
     
     # Summary
     print(f"\n{Colors.BLUE}{'='*80}{Colors.END}")

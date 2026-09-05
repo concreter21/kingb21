@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
   Camera, Play, Square, ShieldAlert, Radio, Bell, BellOff,
-  AlertTriangle, Loader2, X, VolumeX, Volume2, CheckCircle2,
+  AlertTriangle, Loader2, X, VolumeX, Volume2, CheckCircle2, FileWarning,
 } from "lucide-react";
 import axios from "axios";
 import DashboardLayout from "./DashboardLayout";
@@ -156,7 +156,21 @@ const RiskWatchPage = () => {
           recommendation: d.recommendation,
           timestamp: d.timestamp,
           snapshot: frame,
+          filed: false,
+          filing: false,
         };
+        // Persist to backend history
+        try {
+          const logRes = await axios.post(`${API}/watch/log`, {
+            site,
+            job_type: jobType,
+            severity: d.severity,
+            alert: d.alert,
+            recommendation: d.recommendation || "",
+            snapshot_b64: frame,
+          });
+          newAlert.serverId = logRes.data.id;
+        } catch (_) { /* logging is best-effort */ }
         setAlerts((prev) => [newAlert, ...prev].slice(0, 30));
         if (soundOn) playBeep(d.severity);
         toast({
@@ -194,6 +208,38 @@ const RiskWatchPage = () => {
 
   const clearAlerts = () => setAlerts([]);
   const dismissAlert = (id) => setAlerts((prev) => prev.filter((a) => a.id !== id));
+
+  const fileHazard = async (a) => {
+    if (!a.serverId) {
+      toast({ title: "Not synced yet", description: "Alert wasn't logged to server. Try again in a moment.", variant: "destructive" });
+      return;
+    }
+    setAlerts((prev) => prev.map((x) => (x.id === a.id ? { ...x, filing: true } : x)));
+    try {
+      const res = await axios.post(`${API}/hazards`, {
+        site,
+        hazard_type: a.alert.length > 60 ? a.alert.slice(0, 60) + "…" : a.alert,
+        severity: a.severity,
+        description: `${a.alert}${a.recommendation ? `\n\nRecommendation: ${a.recommendation}` : ""}`,
+        snapshot_b64: a.snapshot,
+        source: "watch",
+        watch_alert_id: a.serverId,
+      });
+      setAlerts((prev) =>
+        prev.map((x) =>
+          x.id === a.id ? { ...x, filed: true, filing: false, hazardId: res.data.id } : x
+        )
+      );
+      toast({ title: "Hazard filed", description: "Full record created with the snapshot attached." });
+    } catch (err) {
+      setAlerts((prev) => prev.map((x) => (x.id === a.id ? { ...x, filing: false } : x)));
+      toast({
+        title: "File failed",
+        description: err.response?.data?.detail || err.message,
+        variant: "destructive",
+      });
+    }
+  };
 
   const highest = alerts.length > 0 ? alerts[0].severity : "none";
   const criticalCount = alerts.filter((a) => a.severity === "critical").length;
@@ -446,6 +492,25 @@ const RiskWatchPage = () => {
                           → {a.recommendation}
                         </p>
                       )}
+                      <div className="mt-2 flex justify-end">
+                        {a.filed ? (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">
+                            <CheckCircle2 className="w-3 h-3" /> Filed as hazard
+                          </span>
+                        ) : (
+                          <button
+                            onClick={() => fileHazard(a)}
+                            disabled={a.filing}
+                            className="inline-flex items-center gap-1 text-[10px] font-semibold text-white bg-slate-900 hover:bg-slate-800 px-2 py-1 rounded transition-colors disabled:opacity-60"
+                          >
+                            {a.filing ? (
+                              <><Loader2 className="w-3 h-3 animate-spin" /> Filing…</>
+                            ) : (
+                              <><FileWarning className="w-3 h-3" /> File as Hazard</>
+                            )}
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>

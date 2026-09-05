@@ -104,6 +104,53 @@ class RiskWatchResponse(BaseModel):
     timestamp: str
 
 
+class WatchAlertLog(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    site: str
+    job_type: Optional[str] = ""
+    severity: str
+    alert: str
+    recommendation: Optional[str] = ""
+    snapshot_b64: Optional[str] = ""  # data URL or raw base64
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    filed_as_hazard: bool = False
+    hazard_id: Optional[str] = None
+
+
+class WatchAlertCreate(BaseModel):
+    site: str
+    job_type: Optional[str] = ""
+    severity: str
+    alert: str
+    recommendation: Optional[str] = ""
+    snapshot_b64: Optional[str] = ""
+
+
+class HazardRecord(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    site: str
+    hazard_type: str
+    severity: str
+    status: str = "open"  # open | in_review | mitigated | closed
+    reported_by: str = "M. Weber"
+    description: Optional[str] = ""
+    snapshot_b64: Optional[str] = ""
+    source: str = "manual"  # manual | voice | watch
+    watch_alert_id: Optional[str] = None
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
+
+
+class HazardCreate(BaseModel):
+    site: str
+    hazard_type: str
+    severity: str
+    description: Optional[str] = ""
+    snapshot_b64: Optional[str] = ""
+    source: str = "manual"
+    reported_by: str = "M. Weber"
+    watch_alert_id: Optional[str] = None
+
+
 @api_router.get("/")
 async def root():
     return {"message": "Hello World"}
@@ -470,6 +517,73 @@ async def risk_watch(req: RiskWatchRequest):
         return RiskWatchResponse(
             has_hazard=False, severity="none", alert="", recommendation="", timestamp=ts
         )
+
+
+def _doc_to_watch_alert(doc):
+    doc.pop("_id", None)
+    if isinstance(doc.get("timestamp"), datetime):
+        doc["timestamp"] = doc["timestamp"]
+    return WatchAlertLog(**doc)
+
+
+def _doc_to_hazard(doc):
+    doc.pop("_id", None)
+    return HazardRecord(**doc)
+
+
+@api_router.post("/watch/log", response_model=WatchAlertLog)
+async def log_watch_alert(payload: WatchAlertCreate):
+    """Persist a detected watch alert (and its snapshot) into MongoDB."""
+    alert = WatchAlertLog(**payload.dict())
+    await db.watch_alerts.insert_one(alert.dict())
+    return alert
+
+
+@api_router.get("/watch/history", response_model=List[WatchAlertLog])
+async def get_watch_history(
+    site: Optional[str] = None,
+    severity: Optional[str] = None,
+    search: Optional[str] = None,
+    limit: int = 100,
+):
+    """Retrieve the alert timeline, newest first."""
+    query = {}
+    if site:
+        query["site"] = site
+    if severity:
+        query["severity"] = severity
+    if search:
+        query["alert"] = {"$regex": search, "$options": "i"}
+    cursor = db.watch_alerts.find(query).sort("timestamp", -1).limit(max(1, min(500, limit)))
+    docs = await cursor.to_list(500)
+    return [_doc_to_watch_alert(d) for d in docs]
+
+
+@api_router.delete("/watch/history")
+async def clear_watch_history():
+    result = await db.watch_alerts.delete_many({})
+    return {"deleted": result.deleted_count}
+
+
+@api_router.post("/hazards", response_model=HazardRecord)
+async def create_hazard(payload: HazardCreate):
+    """Persist a hazard record (e.g. filed from a critical watch alert)."""
+    hazard = HazardRecord(**payload.dict())
+    await db.hazards.insert_one(hazard.dict())
+    # If this hazard was filed from a watch alert, mark it
+    if payload.watch_alert_id:
+        await db.watch_alerts.update_one(
+            {"id": payload.watch_alert_id},
+            {"$set": {"filed_as_hazard": True, "hazard_id": hazard.id}},
+        )
+    return hazard
+
+
+@api_router.get("/hazards", response_model=List[HazardRecord])
+async def list_hazards(limit: int = 100):
+    cursor = db.hazards.find().sort("timestamp", -1).limit(max(1, min(500, limit)))
+    docs = await cursor.to_list(500)
+    return [_doc_to_hazard(d) for d in docs]
 
 
 app.include_router(api_router)

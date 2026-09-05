@@ -102,7 +102,7 @@
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
 
-user_problem_statement: "Test the new AI SWMS generation endpoint at POST /api/swms/generate and verify existing endpoints still work"
+user_problem_statement: "Test the new Watch History + Hazard persistence endpoints for SolarSafe pro"
 
 backend:
   - task: "GET /api/ root endpoint"
@@ -209,6 +209,81 @@ backend:
       - working: true
         agent: "testing"
         comment: "Tested successfully with image=[32x32 JPEG base64], site='Warehouse Array – Hamburg Hafen', job_type='Warehouse Ballasted Array', recent_alerts=['Worker without harness at edge']. Returns 200 status in 0.99 seconds (well under 30s requirement). Response contains all required fields: has_hazard (bool: false), severity (valid: 'none'), alert (string: empty), recommendation (string: empty), timestamp (valid ISO string: '2026-09-04T23:56:21.629491'). Business logic correct: when severity is 'none', has_hazard is false. AI vision integration with emergentintegrations library and GPT-4o-mini is working correctly. Image base64 handling and JSON parsing working as expected. Endpoint is functioning correctly for continuous risk monitoring use case."
+      - working: true
+        agent: "testing"
+        comment: "Re-tested successfully. Returns 200 status in 0.98s. All required fields present and validated. Business logic correct. Endpoint continues to work correctly."
+
+  - task: "POST /api/watch/log - Log Watch Alert"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "Tested successfully with site='Warehouse Array – Hamburg Hafen', job_type='Warehouse Ballasted Array', severity='critical', alert='Worker without harness near unprotected edge', recommendation='Attach fall-arrest immediately and clear the area', snapshot_b64='<8x8 PNG base64>'. Returns 200 status. Response contains all required fields: id (UUID: b2d4a4f2-0a5e-4026-aecb-51507f848844), site, job_type, severity, alert, recommendation, snapshot_b64, timestamp (valid ISO string: 2026-09-05T00:06:45.664648), filed_as_hazard (false initially), hazard_id (null initially). All input fields are echoed correctly. MongoDB persistence working correctly. Endpoint is functioning correctly for logging watch alerts."
+
+  - task: "GET /api/watch/history - Retrieve Watch History"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "Tested successfully with three scenarios: (1) With limit=10: Returns 200 status. Response is a JSON list with 1 item (newest first). Found the alert just logged. (2) Filter by site and severity: Returns 200 status with filtered list. All items match filter criteria (site='Warehouse Array – Hamburg Hafen', severity='critical'). (3) Search by keyword 'harness': Returns 200 status with search results. All items contain 'harness' in alert field. MongoDB query filters working correctly. Endpoint is functioning correctly for retrieving watch history with various filters."
+
+  - task: "POST /api/hazards - Create Hazard Record"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "Tested successfully with site='Warehouse Array – Hamburg Hafen', hazard_type='Worker without harness near unprotected edge', severity='critical', description='Auto-filed from watch alert', snapshot_b64='<8x8 PNG base64>', source='watch', watch_alert_id='b2d4a4f2-0a5e-4026-aecb-51507f848844'. Returns 200 status. Response contains all required fields: id (UUID: 7d68b6f4-971a-4d13-a61d-2535ebbdb020), site, hazard_type, severity, status (open), reported_by (M. Weber), description, snapshot_b64, source (watch), watch_alert_id (matches input), timestamp (valid ISO string). MongoDB persistence working correctly. Endpoint is functioning correctly for creating hazard records."
+
+  - task: "Watch Alert Linking - filed_as_hazard and hazard_id update"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "Tested successfully. After creating a hazard with watch_alert_id, verified that the linked watch alert is correctly updated: filed_as_hazard=true (was false initially), hazard_id='7d68b6f4-971a-4d13-a61d-2535ebbdb020' (was null initially). MongoDB update operation in POST /api/hazards endpoint working correctly. The linking mechanism between watch alerts and hazards is functioning correctly."
+
+  - task: "GET /api/hazards - List Hazard Records"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "Tested successfully with limit=10. Returns 200 status. Response is a JSON list with 1 item. List contains the hazard created in previous test with all fields present. Found 1 hazard with source='watch' confirming the watch-to-hazard flow is working. MongoDB retrieval working correctly. Endpoint is functioning correctly for listing hazard records."
+
+  - task: "DELETE /api/watch/history - Clear Watch History"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "Tested successfully. Returns 200 status. Response contains 'deleted' field with value 1 (deleted 1 alert). Verified that GET /api/watch/history returns empty list after delete. MongoDB delete operation working correctly. Endpoint is functioning correctly for clearing watch history."
 
 frontend:
   # No frontend tasks to test as per instructions
@@ -216,18 +291,17 @@ frontend:
 metadata:
   created_by: "testing_agent"
   version: "1.0"
-  test_sequence: 4
+  test_sequence: 5
   run_ui: false
 
 test_plan:
   current_focus:
-    - "POST /api/risk/watch - Continuous Risk Monitoring"
-    - "POST /api/hazards/from-voice - Voice Hazard Structuring"
-    - "POST /api/risk/assess - Vision Risk Assessment"
-    - "POST /api/agent/chat - AI Agent Chat"
-    - "POST /api/swms/generate - AI SWMS generation"
-    - "GET /api/ root endpoint"
-    - "Status endpoints"
+    - "POST /api/watch/log - Log Watch Alert"
+    - "GET /api/watch/history - Retrieve Watch History"
+    - "POST /api/hazards - Create Hazard Record"
+    - "Watch Alert Linking - filed_as_hazard and hazard_id update"
+    - "GET /api/hazards - List Hazard Records"
+    - "DELETE /api/watch/history - Clear Watch History"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
@@ -241,3 +315,5 @@ agent_communication:
     message: "Completed testing of two NEW backend endpoints: (1) POST /api/hazards/from-voice - Voice Hazard Structuring: Returns 200 status in 1.12s. All required fields present (site, hazard_type, severity, description). Contextually accurate extraction from voice transcript. Severity validation working correctly (low/medium/high/critical). (2) POST /api/risk/assess - Vision Risk Assessment: Returns 200 status in 2.18s. All required fields present (observations, hazards, controls, ppe, summary, risk_level). All lists are non-empty with 5 items each. Risk level validation working correctly. Vision AI integration with GPT-4o-mini working correctly. Also verified all existing endpoints still work: GET /api/ (200 OK), POST /api/swms/generate (200 OK, 4.17s), POST /api/agent/chat (200 OK, 4.48s and 5.23s). All 6/6 backend tests passed. Backend is fully functional with no issues."
   - agent: "testing"
     message: "Completed testing of NEW backend endpoint POST /api/risk/watch - Continuous Risk Monitoring. Test results: Returns 200 status in 0.99s (well under 30s requirement). All required fields present and validated: has_hazard (bool: false), severity (valid: 'none'), alert (string: empty), recommendation (string: empty), timestamp (valid ISO string). Business logic correct: when severity is 'none', has_hazard is false. AI vision integration with GPT-4o-mini working correctly. Also verified all existing endpoints still work: GET /api/ (200 OK), POST /api/status (200 OK), GET /api/status (200 OK), POST /api/swms/generate (200 OK, 4.01s), POST /api/agent/chat (200 OK, 4.29s and 5.09s), POST /api/hazards/from-voice (200 OK, 1.21s), POST /api/risk/assess (200 OK, 2.10s). All 7/7 backend tests passed. Backend is fully functional with no issues."
+  - agent: "testing"
+    message: "Completed comprehensive testing of NEW Watch History + Hazard persistence endpoints. Test results: (1) POST /api/watch/log: Returns 200 status. All required fields present (id, site, job_type, severity, alert, recommendation, snapshot_b64, timestamp, filed_as_hazard=false, hazard_id=null). All input fields echoed correctly. (2) GET /api/watch/history: Returns 200 status. Tested with limit, site+severity filter, and search keyword. All filters working correctly. (3) POST /api/hazards: Returns 200 status. All required fields present. source='watch' and watch_alert_id linking working correctly. (4) Watch Alert Linking: Verified that after creating hazard, the linked watch alert is updated with filed_as_hazard=true and hazard_id matching the created hazard. (5) GET /api/hazards: Returns 200 status. List contains hazards with source='watch'. (6) DELETE /api/watch/history: Returns 200 status with deleted count. Verified history is empty after delete. Also verified all existing endpoints still work: GET /api/ (200 OK), POST /api/status (200 OK), GET /api/status (200 OK), POST /api/swms/generate (200 OK, 2.49s), POST /api/agent/chat (200 OK, 4.10s and 5.28s), POST /api/hazards/from-voice (200 OK, 1.15s), POST /api/risk/assess (200 OK, 2.56s), POST /api/risk/watch (200 OK, 0.98s). All 13/13 backend tests passed. Backend is fully functional with no issues."
