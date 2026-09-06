@@ -1,8 +1,7 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, ScrollView, Pressable, Switch } from "react-native";
+import { View, Text, ScrollView, Pressable, Switch, useColorScheme } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { useColorScheme } from "react-native";
 import QRCode from "react-native-qrcode-svg";
 import { CaretLeft, Sparkle, Moon, DeviceMobile, LockKey, CaretRight } from "phosphor-react-native";
 
@@ -11,7 +10,7 @@ import { SectionLabel } from "@/src/components/ui";
 import { storage } from "@/src/utils/storage";
 import { useAuth } from "@/src/auth";
 
-const APP_URL = process.env.EXPO_PUBLIC_BACKEND_URL || "https://thekitchenary.com.au";
+const APP_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
 const OWNER_EMAIL = "halfbc175@gmail.com";
 
 export default function Settings() {

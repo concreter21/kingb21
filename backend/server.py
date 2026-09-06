@@ -45,7 +45,7 @@ AI_MODEL = "gemini-3.1-pro-preview"
 PRIVILEGED_ROLES = ("Safety Officer", "Supervisor")
 VALID_ROLES = ("Worker", "Contractor", "Supervisor", "Safety Officer")
 # Company-shared code required to self-register into a privileged role.
-OFFICER_ACCESS_CODE = os.environ.get("OFFICER_ACCESS_CODE", "TK-SAFETY-2026")
+OFFICER_ACCESS_CODE = os.environ.get("OFFICER_ACCESS_CODE")
 OWNER_EMAIL = os.environ.get("OWNER_EMAIL", "").lower().strip()
 MAX_IMAGE_B64 = 12 * 1024 * 1024  # ~9MB decoded upload cap
 

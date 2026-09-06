@@ -1,0 +1,45 @@
+{
+  "summary": "Backend-only regression run to confirm the four deployment-config fixes (a) OFFICER_ACCESS_CODE default removed from server.py (still set in backend/.env=TK-SAFETY-2026), (b) EMAIL_FROM_NAME quoted in backend/.env, (c) httpx==0.28.1 added to requirements.txt, (d) frontend hardcoded URL fallback removed. All four checks pass. New targeted suite /app/backend/tests/test_deploy_config.py (9 tests) verifies: (1) Register role gating still works - Safety Officer WITHOUT access_code -> 403; Safety Officer WITH access_code='TK-SAFETY-2026' -> 200 with role='Safety Officer'; Worker with no code -> 200. (2) Login+me still succeeds for safety@tk.com, worker@tk.com and owner halfbc175@gmail.com. (3) Admin 2FA email path unaffected by EMAIL_FROM_NAME quoting: POST /api/admin/request-otp as owner -> 200 {ok:true, sent_to='halfbc175@gmail.com'} and 6-digit code stored at db.admin_otps.code; POST /api/admin/verify-otp with that code -> {admin_token}; non-owner (worker & officer) -> 403. Regression suites also fully green: test_security.py 33/33 and test_admin_softdelete.py 26/26 (100.64s combined, xdist -n auto). Zero regressions. server.py:27 load_dotenv is called BEFORE OFFICER_ACCESS_CODE is read on line 48, so the source-level default removal is safe as long as backend/.env keeps the key.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "server.py:48", "issue": "OFFICER_ACCESS_CODE is now os.environ.get('OFFICER_ACCESS_CODE') with no default. If backend/.env is ever missing the key, the variable becomes None and the comparison 'body.access_code.strip() != None' will make it impossible to register any privileged role. Consider raising at startup if OFFICER_ACCESS_CODE is None to fail fast."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_deploy_config.py",
+    "/app/backend/tests/test_security.py",
+    "/app/backend/tests/test_admin_softdelete.py",
+    "/app/test_reports/pytest/pytest_iter5.xml",
+    "/app/test_reports/pytest/pytest_iter5_deploy_config.xml"
+  ],
+  "action_items": [
+    "Optional hardening: in server.py, assert or raise on startup if OFFICER_ACCESS_CODE is None so a missing .env key fails loudly instead of silently blocking all privileged registrations.",
+    "Optional modernisation: convert class-scoped instance-method fixtures worker_assessment/worker_file_path in test_security.py to @classmethod to silence PytestRemovedIn10Warning (non-blocking)."
+  ],
+  "critical_code_review_comments": [
+    "server.py:27 load_dotenv runs before line 48 read of OFFICER_ACCESS_CODE - the default-removal is safe as long as .env is deployed.",
+    "backend/.env EMAIL_FROM_NAME is now quoted (\"TK SafetyGuard\"); admin OTP request+verify still succeeds end-to-end, confirming Resend send did not regress.",
+    "requirements.txt now pins httpx==0.28.1 - service starts cleanly under supervisor.",
+    "Register handler correctly compares body.access_code.strip() != OFFICER_ACCESS_CODE only for PRIVILEGED_ROLES, so Worker path is unaffected by env changes.",
+    "server.py is 931 lines - past the 700-line split threshold; future refactor recommended (non-blocking, noted in iter4)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_deploy_config.py (new)"
+  ],
+  "success_rate": {
+    "backend": "68/68 = 100% (9 deploy-config + 33 security + 26 admin/soft-delete)",
+    "frontend": "not tested (backend-only request)"
+  },
+  "seed_data_creation": "TEST_-prefixed users (Safety Officers with code, Workers) created in test_deploy_config.py; owner/officer/worker seeded accounts reused. No manual cleanup required.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Run: `cd /app/backend && python -m pytest tests/test_deploy_config.py tests/test_admin_softdelete.py tests/test_security.py -v --junitxml=/app/test_reports/pytest/pytest_all.xml` (~105s, uses 2 AI calls in security suite for file-access tests). test_deploy_config.py is fast (~4s, no AI) and can be used as a quick smoke test after any auth/admin/.env change. Owner OTP is read from Mongo db.admin_otps.code (preview path documented in test_credentials.md). If OFFICER_ACCESS_CODE ever disappears from backend/.env, all privileged registrations will start returning 403 - grep server.py:48 first.",
+  "rca_of_issue": "n/a - deployment-config fixes verified with zero regressions across 68 tests."
+}
