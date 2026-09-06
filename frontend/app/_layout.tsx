@@ -1,5 +1,6 @@
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Stack } from "expo-router";
+import { useEffect } from "react";
 import { LogBox, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -10,11 +11,20 @@ import { ErrorBoundary } from "@/src/components/error-boundary";
 import { queryClient } from "@/src/query-client";
 import { AuthProvider } from "@/src/auth";
 import { useAppFonts } from "@/src/fonts";
+import { setColorScheme } from "@/src/theme";
+import { storage } from "@/src/utils/storage";
 
 LogBox.ignoreAllLogs(true);
 
 export default function RootLayout() {
   const fontsLoaded = useAppFonts();
+
+  useEffect(() => {
+    (async () => {
+      const pref = await storage.getItem<string>("tk_theme", "system");
+      setColorScheme(pref === "system" ? null : (pref as "light" | "dark"));
+    })();
+  }, []);
 
   return (
     <ErrorBoundary>
@@ -23,7 +33,7 @@ export default function RootLayout() {
           <KeyboardProvider>
           <QueryClientProvider client={queryClient}>
             <AuthProvider>
-              <StatusBar style="dark" />
+              <StatusBar style="auto" />
               {fontsLoaded ? (
                 <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: "#FFFFFF" } }}>
                   <Stack.Screen name="index" />

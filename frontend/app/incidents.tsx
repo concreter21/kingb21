@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as Haptics from "expo-haptics";
-import { CaretLeft, Plus, X, Warning } from "phosphor-react-native";
+import { CaretLeft, Plus, X, Warning, Trash } from "phosphor-react-native";
 
 import { makeStyles, fonts, useTheme } from "@/src/theme";
 import { Button, Input, StatusBadge } from "@/src/components/ui";
@@ -43,6 +43,15 @@ export default function Incidents() {
     },
   });
 
+  const del = useMutation({
+    mutationFn: (id: string) => api.del(`/incidents/${id}`),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["incidents"] }); qc.invalidateQueries({ queryKey: ["dashboard"] }); },
+  });
+  const clearAll = useMutation({
+    mutationFn: () => api.post("/incidents/clear-all"),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["incidents"] }); qc.invalidateQueries({ queryKey: ["dashboard"] }); },
+  });
+
   const items = data || [];
 
   return (
@@ -52,9 +61,14 @@ export default function Incidents() {
           <CaretLeft size={22} color={colors.onSurface} weight="bold" />
         </Pressable>
         <Text style={s.headerLabel}>INCIDENTS</Text>
-        <Pressable onPress={() => setShowForm(true)} style={s.addBtn} testID="add-incident">
-          <Plus size={20} color={colors.onBrandPrimary} weight="bold" />
-        </Pressable>
+        <View style={s.headerRight}>
+          {items.length > 0 ? (
+            <Pressable onPress={() => clearAll.mutate()} testID="clear-all-incidents"><Text style={s.clearAll}>CLEAR</Text></Pressable>
+          ) : null}
+          <Pressable onPress={() => setShowForm(true)} style={s.addBtn} testID="add-incident">
+            <Plus size={20} color={colors.onBrandPrimary} weight="bold" />
+          </Pressable>
+        </View>
       </View>
 
       {isLoading ? (
@@ -84,13 +98,18 @@ export default function Incidents() {
                 {item.description ? <Text style={s.incDesc}>{item.description}</Text> : null}
                 <View style={s.rowBottom}>
                   <Text style={s.incMeta}>{item.reported_by} · {new Date(item.created_at).toLocaleDateString("en-AU")}</Text>
-                  {open ? (
-                    <Pressable onPress={() => resolve.mutate(item.id)} style={s.resolveBtn} testID={`resolve-${item.id}`}>
-                      <Text style={s.resolveText}>MARK CLOSED</Text>
+                  <View style={s.rowActions}>
+                    {open ? (
+                      <Pressable onPress={() => resolve.mutate(item.id)} style={s.resolveBtn} testID={`resolve-${item.id}`}>
+                        <Text style={s.resolveText}>MARK CLOSED</Text>
+                      </Pressable>
+                    ) : (
+                      <StatusBadge label="CLOSED" bg={colors.surfaceInverse} fg={colors.onSurfaceInverse} />
+                    )}
+                    <Pressable onPress={() => del.mutate(item.id)} hitSlop={8} testID={`delete-incident-${item.id}`}>
+                      <Trash size={18} color={colors.error} weight="bold" />
                     </Pressable>
-                  ) : (
-                    <StatusBadge label="CLOSED" bg={colors.surfaceInverse} fg={colors.onSurfaceInverse} />
-                  )}
+                  </View>
                 </View>
               </View>
             );
@@ -177,6 +196,9 @@ const useStyles = makeStyles((c) => ({
   header: { flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingBottom: 12, borderBottomWidth: 2, borderBottomColor: c.borderStrong, backgroundColor: c.surface, gap: 12 },
   back: { width: 22 },
   headerLabel: { flex: 1, fontFamily: fonts.monoBold, fontSize: 13, color: c.onSurface, letterSpacing: 1, textAlign: "center" },
+  headerRight: { flexDirection: "row", alignItems: "center", gap: 12 },
+  clearAll: { fontFamily: fonts.monoBold, fontSize: 12, color: c.error, letterSpacing: 1 },
+  rowActions: { flexDirection: "row", alignItems: "center", gap: 14 },
   addBtn: { width: 36, height: 36, backgroundColor: c.brandPrimary, alignItems: "center", justifyContent: "center" },
   loading: { paddingVertical: 80, alignItems: "center" },
   empty: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12, padding: 32 },

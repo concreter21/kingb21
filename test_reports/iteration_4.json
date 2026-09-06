@@ -1,0 +1,45 @@
+{
+  "summary": "Backend-only iteration. Added /app/backend/tests/test_admin_softdelete.py (26 tests) covering soft-delete, clear-all, admin 2FA gate, admin CRUD, restore flow, and dashboard equipment regression. All 26 new tests + all 33 existing security tests pass (59/59 = 100%). Verified: (1) DELETE /api/loto|incidents|traffic|assessments/{id} soft-deletes (sets deleted_at, removes from GET list) with owner-or-privileged authorisation (non-owner non-privileged -> 403). (2) POST /api/{module}/clear-all works for assessments/loto/incidents/equipment, workers only clear own items, privileged clear all, response is {ok:true, cleared:int}, unknown module -> 404. (3) POST /api/admin/request-otp allowed ONLY for OWNER_EMAIL (halfbc175@gmail.com); worker/officer -> 403; stores 6-digit code at db.admin_otps.code, returns {ok, sent_to}. (4) POST /api/admin/verify-otp: wrong code -> 401 (increments attempts), correct code -> {admin_token} JWT (type=admin, sub=owner). (5) Admin endpoints reject normal user JWTs (401/403): GET /api/admin/users (list, password_hash excluded), POST /api/admin/users (create; duplicate -> 409), PATCH /api/admin/users/{id}/role (valid role saved; invalid -> 422), GET /api/admin/deleted (returns entries with collection/id/label/deleted_at across the 4 collections), POST /api/admin/restore {collection,id} (clears deleted_at; unknown collection -> 404). (6) End-to-end restore verified: worker soft-deletes an incident -> gone from GET /api/incidents -> appears in GET /api/admin/deleted -> POST /api/admin/restore -> reappears in GET /api/incidents. (7) Dashboard still returns equipment_count and equipment_hazard as ints. NO AI calls were used in the new suite. Existing test_security.py 33/33 still pass -> no regressions.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/admin/users", "issue": "Backend lowercases the email on insert (server.py:858) and correctly returns the lowercased value, but the API contract is not documented explicitly. Non-blocking; noted so consumers/UI don't rely on case-preservation."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_admin_softdelete.py",
+    "/app/backend/tests/test_security.py",
+    "/app/test_reports/pytest/pytest_admin_softdelete.xml",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "None required for correctness. Optional cleanup: modernise the class-scoped instance-method fixtures in test_security.py (worker_assessment, worker_file_path) to @classmethod to silence PytestRemovedIn10Warning."
+  ],
+  "critical_code_review_comments": [
+    "Soft-delete helper _soft_delete_one (server.py:745) correctly enforces owner-or-privileged authorisation using per-collection owner-field map (_OWNER_FIELD); DELETE /api/traffic reuses the same logic inline against created_by name.",
+    "Clear-all route POST /api/{module}/clear-all is a single generic handler that scopes writes with the correct owner-field for non-privileged callers and returns modified_count as `cleared` - clean.",
+    "Admin auth uses a short-lived (30-min) JWT with type=admin + sub=owner_email; current_admin re-validates type AND sub against OWNER_EMAIL env, so a normal user token can never be reused for admin routes.",
+    "verify-otp uses secrets.compare_digest (timing-safe), tracks attempts, rejects after 5, deletes OTP on success, checks expiry - solid.",
+    "GET /api/admin/users excludes password_hash via projection (server.py:845) - verified by test.",
+    "GET /api/admin/deleted correctly aggregates the 4 soft-deletable collections and sorts by deleted_at desc.",
+    "Minor: server.py is now 931 lines (past the 700-line split threshold). Recommend splitting into routers/{auth,assess,loto,traffic,incidents,admin,dashboard}.py in a future refactor - non-blocking."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_admin_softdelete.py (new)"
+  ],
+  "success_rate": {
+    "backend": "59/59 = 100% (26 new admin/soft-delete + 33 security regression)",
+    "frontend": "not tested (backend-only request)"
+  },
+  "seed_data_creation": "TEST_-prefixed users (workers, admin-added users), incidents, loto locks, traffic zones created via /app/backend/tests/test_admin_softdelete.py. Owner account halfbc175@gmail.com re-used. All soft-deleted; no hard cleanup implemented (persists in test_database).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "New feature suite at /app/backend/tests/test_admin_softdelete.py is self-contained: uses MONGO_URL/DB_NAME from backend/.env to read admin_otps.code directly (this is the documented preview path since real email delivery is via Resend). Run with: pytest /app/backend/tests/test_admin_softdelete.py -v --junitxml=/app/test_reports/pytest/pytest_admin_softdelete.xml (no AI calls, ~8s). Combined with security regression: pytest tests/test_admin_softdelete.py tests/test_security.py (~106s, uses 2 AI calls in the security suite for file-access tests). Owner-only 2FA is enforced against the OWNER_EMAIL env var - if that changes, tests must be updated. admin_token is a 30-min JWT - long test runs may need to re-request.",
+  "rca_of_issue": "n/a - all new & regression tests pass. One transient test-authoring bug (case-sensitive email assertion) was fixed locally before final run because the backend lowercases emails on insert."
+}

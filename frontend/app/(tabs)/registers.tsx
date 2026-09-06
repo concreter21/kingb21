@@ -4,7 +4,7 @@ import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as Haptics from "expo-haptics";
-import { Lock, LockOpen, Plus, X } from "phosphor-react-native";
+import { Lock, LockOpen, Plus, X, Trash } from "phosphor-react-native";
 
 import { makeStyles, fonts, useTheme } from "@/src/theme";
 import { Button, Input, StatusBadge } from "@/src/components/ui";
@@ -28,6 +28,15 @@ export default function Registers() {
     },
   });
 
+  const del = useMutation({
+    mutationFn: (id: string) => api.del(`/loto/${id}`),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["loto"] }); qc.invalidateQueries({ queryKey: ["dashboard"] }); },
+  });
+  const clearAll = useMutation({
+    mutationFn: () => api.post("/loto/clear-all"),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["loto"] }); qc.invalidateQueries({ queryKey: ["dashboard"] }); },
+  });
+
   const locks = data || [];
   const activeCount = locks.filter((l: any) => l.status === "locked").length;
 
@@ -46,6 +55,9 @@ export default function Registers() {
               bg={locked ? colors.error : colors.success}
               fg={locked ? colors.onError : colors.onSuccess}
             />
+            <Pressable onPress={() => del.mutate(item.id)} hitSlop={8} testID={`delete-loto-${item.id}`}>
+              <Trash size={18} color={colors.error} weight="bold" />
+            </Pressable>
           </View>
           <Text style={s.machineMeta}>ID {item.machine_id}{item.lock_number ? ` · TAG ${item.lock_number}` : ""}</Text>
           {item.location ? <Text style={s.machineMeta}>{item.location}</Text> : null}
@@ -67,9 +79,14 @@ export default function Registers() {
           <Text style={s.title}>LOTO REGISTER</Text>
           <Text style={s.subtitle}>{activeCount} active lockout / tagout</Text>
         </View>
-        <Pressable style={s.addBtn} onPress={() => setShowForm(true)} testID="add-loto">
-          <Plus size={22} color={colors.onBrandPrimary} weight="bold" />
-        </Pressable>
+        <View style={s.headerRight}>
+          {locks.length > 0 ? (
+            <Pressable onPress={() => clearAll.mutate()} testID="clear-all-loto"><Text style={s.clearAll}>CLEAR</Text></Pressable>
+          ) : null}
+          <Pressable style={s.addBtn} onPress={() => setShowForm(true)} testID="add-loto">
+            <Plus size={22} color={colors.onBrandPrimary} weight="bold" />
+          </Pressable>
+        </View>
       </View>
 
       {isLoading ? (
@@ -157,6 +174,8 @@ const useStyles = makeStyles((c) => ({
   title: { fontFamily: fonts.display, fontSize: 24, color: c.onSurface },
   subtitle: { fontFamily: fonts.mono, fontSize: 12, color: c.muted, marginTop: 2 },
   addBtn: { width: 44, height: 44, backgroundColor: c.brandPrimary, alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: c.borderStrong },
+  headerRight: { flexDirection: "row", alignItems: "center", gap: 14 },
+  clearAll: { fontFamily: fonts.monoBold, fontSize: 12, color: c.error, letterSpacing: 1 },
   loading: { paddingVertical: 80, alignItems: "center" },
   empty: { flex: 1, alignItems: "center", justifyContent: "center", padding: 32 },
   emptyBig: { fontFamily: fonts.display, fontSize: 32, color: c.onSurface, textAlign: "center", letterSpacing: -1 },

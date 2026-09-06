@@ -2,8 +2,8 @@ import React from "react";
 import { View, Text, FlatList, Pressable, ActivityIndicator } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { useQuery } from "@tanstack/react-query";
-import { CaretLeft, FileText, CaretRight } from "phosphor-react-native";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { CaretLeft, FileText, Trash } from "phosphor-react-native";
 
 import { makeStyles, fonts, useTheme } from "@/src/theme";
 import { RiskBadge } from "@/src/components/ui";
@@ -16,9 +16,19 @@ export default function Documents() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const qc = useQueryClient();
 
   const { data, isLoading } = useQuery({ queryKey: ["assessments"], queryFn: () => api.get("/assessments") });
   const items = data || [];
+
+  const del = useMutation({
+    mutationFn: (id: string) => api.del(`/assessments/${id}`),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["assessments"] }); qc.invalidateQueries({ queryKey: ["dashboard"] }); },
+  });
+  const clearAll = useMutation({
+    mutationFn: () => api.post("/assessments/clear-all"),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["assessments"] }); qc.invalidateQueries({ queryKey: ["dashboard"] }); },
+  });
 
   return (
     <View style={s.container}>
@@ -27,7 +37,9 @@ export default function Documents() {
           <CaretLeft size={22} color={colors.onSurface} weight="bold" />
         </Pressable>
         <Text style={s.headerLabel}>DOCUMENTS</Text>
-        <View style={{ width: 22 }} />
+        {items.length > 0 ? (
+          <Pressable onPress={() => clearAll.mutate()} testID="clear-all-documents"><Text style={s.clearAll}>CLEAR</Text></Pressable>
+        ) : <View style={{ width: 22 }} />}
       </View>
 
       {isLoading ? (
@@ -51,7 +63,9 @@ export default function Documents() {
                 <Text style={s.docMeta}>{new Date(item.created_at).toLocaleString("en-AU")}</Text>
               </View>
               <RiskBadge level={item.result?.overall_risk_level} />
-              <CaretRight size={18} color={colors.muted} weight="bold" />
+              <Pressable onPress={() => del.mutate(item.id)} hitSlop={8} testID={`delete-doc-${item.id}`}>
+                <Trash size={18} color={colors.error} weight="bold" />
+              </Pressable>
             </Pressable>
           )}
         />
@@ -65,6 +79,7 @@ const useStyles = makeStyles((c) => ({
   header: { flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingBottom: 12, borderBottomWidth: 2, borderBottomColor: c.borderStrong, backgroundColor: c.surface, gap: 12 },
   back: { width: 22 },
   headerLabel: { flex: 1, fontFamily: fonts.monoBold, fontSize: 13, color: c.onSurface, letterSpacing: 1, textAlign: "center" },
+  clearAll: { fontFamily: fonts.monoBold, fontSize: 12, color: c.error, letterSpacing: 1 },
   loading: { paddingVertical: 80, alignItems: "center" },
   empty: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12, padding: 32 },
   emptyText: { fontFamily: fonts.body, fontSize: 14, color: c.muted },

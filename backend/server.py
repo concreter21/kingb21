@@ -3,6 +3,7 @@ import re
 import json
 import uuid
 import base64
+import secrets
 import logging
 from pathlib import Path
 from datetime import datetime, timezone, timedelta
@@ -20,6 +21,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel, Field, EmailStr
 
 from emergentintegrations.llm.chat import LlmChat, UserMessage, ImageContent
+from email_util import send_email, otp_email_html
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / ".env")
@@ -44,6 +46,7 @@ PRIVILEGED_ROLES = ("Safety Officer", "Supervisor")
 VALID_ROLES = ("Worker", "Contractor", "Supervisor", "Safety Officer")
 # Company-shared code required to self-register into a privileged role.
 OFFICER_ACCESS_CODE = os.environ.get("OFFICER_ACCESS_CODE", "TK-SAFETY-2026")
+OWNER_EMAIL = os.environ.get("OWNER_EMAIL", "").lower().strip()
 MAX_IMAGE_B64 = 12 * 1024 * 1024  # ~9MB decoded upload cap
 
 STORAGE_BASE = (os.environ.get("INTEGRATION_PROXY_URL") or "").strip() or "https://integrations.emergentagent.com"
@@ -730,6 +733,180 @@ async def dashboard(user: dict = Depends(current_user)):
         "on_site": on_site,
         "recent_assessments": recent,
     }
+
+
+# ---------------------------------------------------------------------------
+# Routes: delete & clear-all (soft delete — recoverable by admin)
+# ---------------------------------------------------------------------------
+_COLLECTIONS = {"assessments": db.assessments, "loto": db.loto, "incidents": db.incidents, "equipment": db.equipment}
+_OWNER_FIELD = {"assessments": "user_id", "loto": "applied_by_id", "incidents": "reported_by_id", "equipment": "user_id"}
+
+
+async def _soft_delete_one(coll_name: str, item_id: str, user: dict):
+    coll = _COLLECTIONS[coll_name]
+    doc = await coll.find_one({"id": item_id})
+    if not doc:
+        raise HTTPException(404, "Item not found")
+    owner_field = _OWNER_FIELD[coll_name]
+    if doc.get(owner_field) != user["id"] and user.get("role") not in PRIVILEGED_ROLES:
+        raise HTTPException(403, "Not authorised to delete this item")
+    await coll.update_one({"id": item_id}, {"$set": {"deleted_at": datetime.now(timezone.utc).isoformat()}})
+    return {"ok": True}
+
+
+@api.delete("/loto/{lid}")
+async def delete_loto(lid: str, user: dict = Depends(current_user)):
+    return await _soft_delete_one("loto", lid, user)
+
+
+@api.delete("/incidents/{iid}")
+async def delete_incident(iid: str, user: dict = Depends(current_user)):
+    return await _soft_delete_one("incidents", iid, user)
+
+
+@api.delete("/traffic/{tid}")
+async def delete_traffic(tid: str, user: dict = Depends(current_user)):
+    doc = await db.traffic.find_one({"id": tid})
+    if not doc:
+        raise HTTPException(404, "Item not found")
+    if doc.get("created_by") != user.get("name") and user.get("role") not in PRIVILEGED_ROLES:
+        raise HTTPException(403, "Not authorised")
+    await db.traffic.update_one({"id": tid}, {"$set": {"deleted_at": datetime.now(timezone.utc).isoformat()}})
+    return {"ok": True}
+
+
+@api.post("/{module}/clear-all")
+async def clear_all(module: str, user: dict = Depends(current_user)):
+    if module not in _COLLECTIONS:
+        raise HTTPException(404, "Unknown module")
+    q = {"deleted_at": None}
+    if user.get("role") not in PRIVILEGED_ROLES:
+        q[_OWNER_FIELD[module]] = user["id"]
+    res = await _COLLECTIONS[module].update_many(q, {"$set": {"deleted_at": datetime.now(timezone.utc).isoformat()}})
+    return {"ok": True, "cleared": res.modified_count}
+
+
+# ---------------------------------------------------------------------------
+# Routes: admin (2FA email gated, owner only)
+# ---------------------------------------------------------------------------
+def make_admin_token(email: str) -> str:
+    payload = {"sub": email, "type": "admin", "iat": datetime.now(timezone.utc),
+               "exp": datetime.now(timezone.utc) + timedelta(minutes=30)}
+    return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGO)
+
+
+async def current_admin(authorization: Optional[str] = Header(None)) -> dict:
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(401, "Admin session required")
+    try:
+        payload = jwt.decode(authorization.split(" ", 1)[1], JWT_SECRET, algorithms=[JWT_ALGO])
+    except Exception:
+        raise HTTPException(401, "Invalid or expired admin session")
+    if payload.get("type") != "admin" or (payload.get("sub") or "").lower() != OWNER_EMAIL:
+        raise HTTPException(403, "Not an admin session")
+    return {"email": OWNER_EMAIL}
+
+
+class VerifyOtpIn(BaseModel):
+    code: str
+
+
+@api.post("/admin/request-otp")
+async def admin_request_otp(user: dict = Depends(current_user)):
+    if OWNER_EMAIL and user["email"].lower() != OWNER_EMAIL:
+        raise HTTPException(403, "Admin access is restricted to the owner account")
+    code = f"{secrets.randbelow(1000000):06d}"
+    await db.admin_otps.update_one(
+        {"email": user["email"].lower()},
+        {"$set": {"code": code, "expires_at": (datetime.now(timezone.utc) + timedelta(minutes=10)).isoformat(),
+                  "attempts": 0}}, upsert=True)
+    await send_email(to=user["email"], subject="Your TK SafetyGuard admin code", html=otp_email_html(code))
+    return {"ok": True, "sent_to": user["email"]}
+
+
+@api.post("/admin/verify-otp")
+async def admin_verify_otp(body: VerifyOtpIn, user: dict = Depends(current_user)):
+    rec = await db.admin_otps.find_one({"email": user["email"].lower()})
+    if not rec:
+        raise HTTPException(400, "Request a code first")
+    if rec.get("attempts", 0) >= 5:
+        raise HTTPException(429, "Too many attempts — request a new code")
+    if datetime.now(timezone.utc) > datetime.fromisoformat(rec["expires_at"]):
+        raise HTTPException(400, "Code expired — request a new one")
+    if not secrets.compare_digest(str(body.code).strip(), rec["code"]):
+        await db.admin_otps.update_one({"email": user["email"].lower()}, {"$inc": {"attempts": 1}})
+        raise HTTPException(401, "Incorrect code")
+    await db.admin_otps.delete_one({"email": user["email"].lower()})
+    return {"admin_token": make_admin_token(user["email"].lower())}
+
+
+@api.get("/admin/users")
+async def admin_list_users(admin: dict = Depends(current_admin)):
+    users = await db.users.find({}, {"_id": 0, "password_hash": 0}).to_list(1000)
+    return users
+
+
+class AdminUserIn(BaseModel):
+    email: EmailStr
+    password: str = Field(min_length=6, max_length=128)
+    name: str = ""
+    role: str = "Worker"
+
+
+@api.post("/admin/users")
+async def admin_add_user(body: AdminUserIn, admin: dict = Depends(current_admin)):
+    email = body.email.lower().strip()
+    if await db.users.find_one({"email": email}):
+        raise HTTPException(409, "Email already registered")
+    role = body.role if body.role in VALID_ROLES else "Worker"
+    u = {"id": str(uuid.uuid4()), "email": email, "name": body.name.strip() or email.split("@")[0],
+         "role": role, "password_hash": hash_pw(body.password), "created_at": datetime.now(timezone.utc).isoformat()}
+    await db.users.insert_one(u)
+    return public_user(u)
+
+
+class RoleIn(BaseModel):
+    role: str
+
+
+@api.patch("/admin/users/{uid}/role")
+async def admin_change_role(uid: str, body: RoleIn, admin: dict = Depends(current_admin)):
+    if body.role not in VALID_ROLES:
+        raise HTTPException(422, "Invalid role")
+    u = await db.users.find_one({"id": uid})
+    if not u:
+        raise HTTPException(404, "User not found")
+    await db.users.update_one({"id": uid}, {"$set": {"role": body.role}})
+    u = await db.users.find_one({"id": uid})
+    return public_user(u)
+
+
+@api.get("/admin/deleted")
+async def admin_list_deleted(admin: dict = Depends(current_admin)):
+    out = []
+    for name, coll in _COLLECTIONS.items():
+        docs = await coll.find({"deleted_at": {"$ne": None}}, {"_id": 0}).sort("deleted_at", -1).to_list(200)
+        for d in docs:
+            out.append({
+                "collection": name, "id": d.get("id"),
+                "label": d.get("title") or d.get("machine_name") or (f"{d.get('brand','')} {d.get('model','')}").strip() or d.get("category") or name,
+                "photo_path": d.get("photo_path"), "deleted_at": d.get("deleted_at"),
+            })
+    out.sort(key=lambda x: x.get("deleted_at") or "", reverse=True)
+    return out
+
+
+class RestoreIn(BaseModel):
+    collection: str
+    id: str
+
+
+@api.post("/admin/restore")
+async def admin_restore(body: RestoreIn, admin: dict = Depends(current_admin)):
+    if body.collection not in _COLLECTIONS:
+        raise HTTPException(404, "Unknown collection")
+    await _COLLECTIONS[body.collection].update_one({"id": body.id}, {"$set": {"deleted_at": None}})
+    return {"ok": True}
 
 
 # ---------------------------------------------------------------------------

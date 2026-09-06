@@ -37,6 +37,11 @@ Clone of https://thekitchenary.base44.app — an all-in-one OHS&E management pla
 - LIVE MANUAL FETCH: machinery flow identifies brand/model, then Perplexity Search API fetches the real manufacturer manual/safety-spec, Gemini cross-references cited sources; source links shown in app + PDF. Graceful fallback to model knowledge when key invalid (manual_verified flag). NOTE: current PERPLEXITY_API_KEY is a Gemini-style token (401) → running in fallback; replace with a valid `pplx-` key to activate.
 - Visual polish: first-launch onboarding intro screen (branded, feature highlights, Get Started), persisted via storage.
 
+## Implemented (2026-09-06)
+- Soft-delete + Clear-all across assessments/LOTO/incidents/traffic/equipment (recoverable). Individual delete + per-module CLEAR in the UI.
+- Settings screen: AI Assist toggle (gates AI Assess), Dark/Light mode toggle (persisted, full dark theme added), download-app QR, owner-only Admin Console entry.
+- Admin Console (owner-only, 2FA email OTP via Resend): add users, change roles, view & restore soft-deleted items/photos. admin_otps collection + short-lived admin JWT. Verified 59/59.
+
 ## Backlog
 - P1: Native iOS 26 NativeTabs variant; QR-code site access scanning; assessment sign-off/approval workflow.
 - P2: Multi-site support & roles/permissions; offline queue for assessments; incident photo display; enum validation + 404 on incident PATCH.

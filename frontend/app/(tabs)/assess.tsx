@@ -1,16 +1,17 @@
-import React, { useRef, useState } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import { View, Text, Pressable, Linking, ActivityIndicator } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
+import { useRouter, useFocusEffect } from "expo-router";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import * as ImagePicker from "expo-image-picker";
 import * as Haptics from "expo-haptics";
 import { useQueryClient } from "@tanstack/react-query";
-import { Camera, Image as ImageIcon, Warning, ArrowClockwise, WarningOctagon, ClipboardText, UsersThree, Gear } from "phosphor-react-native";
+import { Camera, Image as ImageIcon, Warning, ArrowClockwise, WarningOctagon, ClipboardText, UsersThree, Gear, Sparkle } from "phosphor-react-native";
 
 import { makeStyles, fonts, useTheme } from "@/src/theme";
 import { Button } from "@/src/components/ui";
 import { api } from "@/src/api";
+import { storage } from "@/src/utils/storage";
 
 const MODES = [
   { key: "risk", label: "Risk", hint: "Live risk assessment", icon: WarningOctagon },
@@ -31,6 +32,13 @@ export default function Assess() {
   const [mode, setMode] = useState("risk");
   const [analysing, setAnalysing] = useState(false);
   const [error, setError] = useState("");
+  const [aiEnabled, setAiEnabled] = useState(true);
+
+  useFocusEffect(
+    useCallback(() => {
+      storage.getItem<boolean>("tk_ai_assist", true).then((v) => setAiEnabled(v ?? true));
+    }, [])
+  );
 
   const activeMode = MODES.find((m) => m.key === mode)!;
 
@@ -154,17 +162,26 @@ export default function Assess() {
         </View>
       </View>
 
-      {renderViewfinder()}
+      {!aiEnabled ? (
+        <View style={s.disabledWrap} testID="ai-disabled">
+          <Sparkle size={48} color={colors.muted} weight="bold" />
+          <Text style={s.disabledTitle}>AI ASSIST IS OFF</Text>
+          <Text style={s.disabledText}>Turn on AI Assist in Settings to run camera-based safety assessments.</Text>
+          <Button title="OPEN SETTINGS" variant="outline" onPress={() => router.push("/settings" as any)} testID="ai-open-settings" style={{ marginTop: 8 }} />
+        </View>
+      ) : (
+        <>
+          {renderViewfinder()}
 
-      {/* Bottom action panel */}
-      <View style={[s.panel, { paddingBottom: insets.bottom + 16 }]}>
-        {error ? (
-          <View style={s.errorBox} testID="assess-error">
-            <Warning size={16} color={colors.onError} weight="fill" />
-            <Text style={s.errorText}>{error}</Text>
-          </View>
-        ) : null}
-        <View style={s.actions}>
+          {/* Bottom action panel */}
+          <View style={[s.panel, { paddingBottom: insets.bottom + 16 }]}>
+            {error ? (
+              <View style={s.errorBox} testID="assess-error">
+                <Warning size={16} color={colors.onError} weight="fill" />
+                <Text style={s.errorText}>{error}</Text>
+              </View>
+            ) : null}
+            <View style={s.actions}>
           <Pressable
             style={[s.captureBtn, (analysing || !permission?.granted) && s.captureDisabled]}
             onPress={capture}
@@ -183,8 +200,10 @@ export default function Assess() {
           <Pressable style={s.galleryBtn} onPress={pickImage} disabled={analysing} testID="gallery-button">
             {analysing ? <ArrowClockwise size={22} color={colors.onSurface} /> : <ImageIcon size={22} color={colors.onSurface} weight="bold" />}
           </Pressable>
-        </View>
-      </View>
+            </View>
+          </View>
+        </>
+      )}
     </View>
   );
 }
@@ -200,6 +219,9 @@ const useStyles = makeStyles((c) => ({
   },
   title: { fontFamily: fonts.display, fontSize: 26, color: c.onSurface },
   subtitle: { fontFamily: fonts.body, fontSize: 13, color: c.muted, marginTop: 2 },
+  disabledWrap: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12, padding: 32 },
+  disabledTitle: { fontFamily: fonts.display, fontSize: 20, color: c.onSurface, letterSpacing: 0.5 },
+  disabledText: { fontFamily: fonts.body, fontSize: 14, color: c.muted, textAlign: "center", lineHeight: 20 },
   chipScroll: { marginTop: 14, marginHorizontal: -20 },
   chipRow: { gap: 8, paddingHorizontal: 20 },
   segment: { flexDirection: "row", marginTop: 14, borderWidth: 2, borderColor: c.borderStrong },

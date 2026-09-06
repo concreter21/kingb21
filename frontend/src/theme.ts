@@ -43,8 +43,44 @@ const light = {
 
 export type ThemeColors = typeof light;
 
+const dark: ThemeColors = {
+  surface: "#111111",
+  onSurface: "#FFFFFF",
+  surfaceSecondary: "#1C1C1F",
+  onSurfaceSecondary: "#E4E4E7",
+  surfaceTertiary: "#27272A",
+  onSurfaceTertiary: "#D4D4D8",
+  surfaceInverse: "#FFFFFF",
+  onSurfaceInverse: "#111111",
+  muted: "#A1A1AA",
+
+  brand: "#FFFFFF",
+  onBrand: "#111111",
+  brandPrimary: "#FFFFFF",
+  onBrandPrimary: "#111111",
+  brandSecondary: "#3F3F46",
+  onBrandSecondary: "#FFFFFF",
+  brandTertiary: "#27272A",
+  onBrandTertiary: "#FFFFFF",
+
+  success: "#16A34A",
+  onSuccess: "#FFFFFF",
+  warning: "#F59E0B",
+  onWarning: "#111111",
+  error: "#EF4444",
+  onError: "#FFFFFF",
+  critical: "#7F1D1D",
+  onCritical: "#FFFFFF",
+  info: "#A1A1AA",
+  onInfo: "#111111",
+
+  border: "#3F3F46",
+  borderStrong: "#FFFFFF",
+  divider: "#27272A",
+};
+
 export const defaultScheme = "light" satisfies ColorScheme;
-export const themes: { light: ThemeColors; dark?: ThemeColors } = { light };
+export const themes: { light: ThemeColors; dark?: ThemeColors } = { light, dark };
 
 export const fonts = {
   display: "SpaceGrotesk-Bold",

@@ -30,6 +30,9 @@ export default function Profile() {
     <View style={s.container}>
       <View style={[s.header, { paddingTop: insets.top + 12 }]}>
         <Text style={s.title}>PROFILE</Text>
+        <Pressable onPress={() => router.push("/settings" as any)} style={s.gear} testID="open-settings">
+          <Gear size={24} color={colors.onSurface} weight="bold" />
+        </Pressable>
       </View>
       <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 24 }} showsVerticalScrollIndicator={false}>
         <View style={s.userCard}>
@@ -79,7 +82,8 @@ export default function Profile() {
 
 const useStyles = makeStyles((c) => ({
   container: { flex: 1, backgroundColor: c.surface },
-  header: { paddingHorizontal: 20, paddingBottom: 16, borderBottomWidth: 2, borderBottomColor: c.borderStrong, backgroundColor: c.surface },
+  header: { paddingHorizontal: 20, paddingBottom: 16, borderBottomWidth: 2, borderBottomColor: c.borderStrong, backgroundColor: c.surface, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  gear: { width: 40, height: 40, alignItems: "center", justifyContent: "center" },
   title: { fontFamily: fonts.display, fontSize: 24, color: c.onSurface },
   userCard: { flexDirection: "row", alignItems: "center", gap: 16, padding: 20, borderBottomWidth: 2, borderBottomColor: c.borderStrong },
   avatar: { width: 64, height: 64, backgroundColor: c.brandPrimary, alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: c.borderStrong },
