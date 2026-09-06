@@ -715,7 +715,7 @@ async def update_loto(lid: str, body: LotoUpdate, user: dict = Depends(current_u
 # ---------------------------------------------------------------------------
 @api.get("/access")
 async def list_access(user: dict = Depends(current_user)):
-    records = await db.access.find({}, {"_id": 0}).sort("created_at", -1).to_list(100)
+    records = await db.access.find({"deleted_at": None}, {"_id": 0}).sort("created_at", -1).to_list(100)
     last_self = await db.access.find_one({"user_id": user["id"], "type": {"$in": ["signin", "signout"]}},
                                          sort=[("created_at", -1)])
     status = "out"
@@ -864,6 +864,58 @@ async def delete_traffic(tid: str, user: dict = Depends(current_user)):
         raise HTTPException(403, "Not authorised")
     await db.traffic.update_one({"id": tid}, {"$set": {"deleted_at": datetime.now(timezone.utc).isoformat()}})
     return {"ok": True}
+
+
+@api.delete("/equipment/{eid}")
+async def delete_equipment(eid: str, user: dict = Depends(current_user)):
+    return await _soft_delete_one("equipment", eid, user)
+
+
+@api.delete("/access/{aid}")
+async def delete_access(aid: str, user: dict = Depends(current_user)):
+    doc = await db.access.find_one({"id": aid})
+    if not doc:
+        raise HTTPException(404, "Record not found")
+    if doc.get("user_id") != user["id"] and user.get("role") not in PRIVILEGED_ROLES:
+        raise HTTPException(403, "Not authorised")
+    await db.access.update_one({"id": aid}, {"$set": {"deleted_at": datetime.now(timezone.utc).isoformat()}})
+    return {"ok": True}
+
+
+class SupportIn(BaseModel):
+    message: str
+    history: List[dict] = []
+
+
+SUPPORT_SYSTEM = """You are the friendly in-app help assistant for TK SafetyGuard, an OHS&E (safety) app for The Kitchenary warehouse in Arndell Park, aligned with Australian WHS. Help users USE the app. Keep answers short, clear and practical.
+Features you can explain:
+- AI Assess tab: capture or upload a photo, pick a mode (Risk, SWMS, Worker Density, Machinery), and AI generates a WHS assessment you can export as PDF. Machinery mode identifies the make/model and marks equipment PASS or HAZARD (a hazard auto-creates an incident report).
+- LOTO tab: register lockout/tagout locks and release them.
+- Site Access tab: scan the gate QR or use buttons to sign in/out; add visitor/contractor inductions.
+- Equipment Register: list of machinery assessed and cleared/hazard.
+- Incidents & Traffic zones from the Home hub.
+- Documents: assessment history and PDF export.
+- Settings (Profile > gear): toggle AI Assist, Dark mode, change password, delete account.
+- Owner-only Admin Console (2FA email code) to add users, change roles, and restore deleted items.
+- Delete/Clear: each list has a trash icon and a CLEAR button; deleted items can be restored by the admin.
+If asked something unrelated to the app, gently steer back to how the app works. Never invent features that don't exist above."""
+
+
+@api.post("/support/chat")
+async def support_chat(body: SupportIn, user: dict = Depends(current_user)):
+    chat = LlmChat(api_key=EMERGENT_LLM_KEY, session_id=f"support-{user['id']}",
+                   system_message=SUPPORT_SYSTEM).with_model("gemini", AI_MODEL)
+    convo = ""
+    for m in (body.history or [])[-6:]:
+        role = "User" if m.get("role") == "user" else "Assistant"
+        convo += f"{role}: {m.get('content','')}\n"
+    convo += f"User: {body.message}\nAssistant:"
+    try:
+        reply = await chat.send_message(UserMessage(text=convo))
+        return {"reply": reply if isinstance(reply, str) else str(reply)}
+    except Exception as e:
+        logger.error(f"support chat failed: {e}")
+        return {"reply": "Sorry, I couldn't reach the help service just now. Please try again in a moment."}
 
 
 @api.post("/{module}/clear-all")

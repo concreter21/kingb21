@@ -2,8 +2,8 @@ import React from "react";
 import { View, Text, FlatList, Pressable, ActivityIndicator } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { useQuery } from "@tanstack/react-query";
-import { CaretLeft, CaretRight, Gear, SealCheck, WarningOctagon } from "phosphor-react-native";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { CaretLeft, Gear, SealCheck, WarningOctagon, Trash } from "phosphor-react-native";
 
 import { makeStyles, fonts, useTheme } from "@/src/theme";
 import { StatusBadge } from "@/src/components/ui";
@@ -16,6 +16,11 @@ export default function Equipment() {
   const router = useRouter();
 
   const { data, isLoading } = useQuery({ queryKey: ["equipment"], queryFn: () => api.get("/equipment") });
+  const qc = useQueryClient();
+  const del = useMutation({
+    mutationFn: (id: string) => api.del(`/equipment/${id}`),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["equipment"] }); qc.invalidateQueries({ queryKey: ["dashboard"] }); },
+  });
   const items = data || [];
   const passed = items.filter((i: any) => i.outcome === "PASS").length;
   const hazards = items.filter((i: any) => i.outcome === "HAZARD").length;
@@ -72,7 +77,9 @@ export default function Equipment() {
                   <Text style={s.meta}>{item.machine_type}{item.location ? ` · ${item.location}` : ""}</Text>
                   <Text style={s.meta}>{new Date(item.created_at).toLocaleDateString("en-AU")} · {item.assessed_by}</Text>
                 </View>
-                <CaretRight size={18} color={colors.muted} weight="bold" />
+                <Pressable onPress={() => del.mutate(item.id)} hitSlop={8} testID={`delete-equip-${item.id}`}>
+                  <Trash size={18} color={colors.error} weight="bold" />
+                </Pressable>
               </Pressable>
             );
           }}

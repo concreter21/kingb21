@@ -49,6 +49,10 @@ Clone of https://thekitchenary.base44.app — an all-in-one OHS&E management pla
 ## Implemented (2026-09-06, account management)
 - In-app Change Password (POST /api/auth/change-password) and Delete Account (POST /api/auth/delete-account, soft-delete + email scramble, blocks login/token) in Settings → Account. Verified 79/79. Satisfies App Store account-deletion requirement.
 
+## Implemented (2026-09-06, support + deletes)
+- In-app AI Help & Support chat (floating Help button on Home → /support) via POST /api/support/chat (Gemini, app-usage guidance).
+- Soft-delete added to Equipment Register (DELETE /api/equipment/{id}) and Site Access records (DELETE /api/access/{id}); admin-restorable. Verified 44/44.
+
 ## Backlog
 - P1: Native iOS 26 NativeTabs variant; QR-code site access scanning; assessment sign-off/approval workflow.
 - P2: Multi-site support & roles/permissions; offline queue for assessments; incident photo display; enum validation + 404 on incident PATCH.

@@ -6,7 +6,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import QRCode from "react-native-qrcode-svg";
 import * as Haptics from "expo-haptics";
-import { SignIn, SignOut, UserPlus, X, IdentificationBadge, QrCode } from "phosphor-react-native";
+import { SignIn, SignOut, UserPlus, X, IdentificationBadge, QrCode, Trash } from "phosphor-react-native";
 
 import { makeStyles, fonts, useTheme } from "@/src/theme";
 import { Button, Input, StatusBadge } from "@/src/components/ui";
@@ -32,6 +32,11 @@ export default function Access() {
       qc.invalidateQueries({ queryKey: ["access"] });
       qc.invalidateQueries({ queryKey: ["dashboard"] });
     },
+  });
+
+  const del = useMutation({
+    mutationFn: (id: string) => api.del(`/access/${id}`),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["access"] }); qc.invalidateQueries({ queryKey: ["dashboard"] }); },
   });
 
   const onSite = data?.status === "in";
@@ -132,6 +137,9 @@ export default function Access() {
                   {new Date(item.created_at).toLocaleString("en-AU")}
                 </Text>
               </View>
+              <Pressable onPress={() => del.mutate(item.id)} hitSlop={8} testID={`delete-access-${item.id}`}>
+                <Trash size={18} color={colors.error} weight="bold" />
+              </Pressable>
             </View>
           )}
         />

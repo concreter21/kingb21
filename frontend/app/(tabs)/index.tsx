@@ -11,6 +11,7 @@ import {
   TrafficSign,
   FileText,
   Gear,
+  Headset,
   CaretRight,
 } from "phosphor-react-native";
 
@@ -145,6 +146,10 @@ export default function Home() {
           </>
         )}
       </ScrollView>
+
+      <Pressable style={s.fab} onPress={() => router.push("/support" as any)} testID="support-fab">
+        <Headset size={26} color={colors.onBrandPrimary} weight="fill" />
+      </Pressable>
     </View>
   );
 }
@@ -210,4 +215,5 @@ const useStyles = makeStyles((c) => ({
   modeTagText: { fontFamily: fonts.monoBold, fontSize: 10, color: c.onSurfaceTertiary, letterSpacing: 0.5 },
   recentTitle: { fontFamily: fonts.bodyMed, fontSize: 14, color: c.onSurface },
   recentMeta: { fontFamily: fonts.mono, fontSize: 11, color: c.muted, marginTop: 1 },
+  fab: { position: "absolute", right: 20, bottom: 20, width: 56, height: 56, backgroundColor: c.brandPrimary, borderWidth: 2, borderColor: c.borderStrong, alignItems: "center", justifyContent: "center" },
 }));
