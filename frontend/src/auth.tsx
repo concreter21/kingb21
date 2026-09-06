@@ -11,6 +11,8 @@ type AuthState = {
   logout: () => Promise<void>;
   forgotPassword: (email: string) => Promise<void>;
   resetPassword: (email: string, code: string, newPassword: string) => Promise<void>;
+  changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
+  deleteAccount: (password: string) => Promise<void>;
 };
 
 const AuthContext = createContext<AuthState>({} as AuthState);
@@ -61,8 +63,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(res.user);
   };
 
+  const changePassword = async (currentPassword: string, newPassword: string) => {
+    await api.post("/auth/change-password", { current_password: currentPassword, new_password: newPassword });
+  };
+
+  const deleteAccount = async (password: string) => {
+    await api.post("/auth/delete-account", { password });
+    await clearToken();
+    setUser(null);
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout, forgotPassword, resetPassword }}>
+    <AuthContext.Provider value={{ user, loading, login, register, logout, forgotPassword, resetPassword, changePassword, deleteAccount }}>
       {children}
     </AuthContext.Provider>
   );

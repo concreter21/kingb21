@@ -46,6 +46,9 @@ Clone of https://thekitchenary.base44.app — an all-in-one OHS&E management pla
 - Email-based password recovery at login: "Forgot password?" link → POST /api/auth/forgot-password emails a 6-digit code (Resend, 15-min), POST /api/auth/reset-password verifies and updates the password, then auto-logs in. Two-step reset screen. Non-enumerating (always 200), 5-attempt lockout, 60s cooldown.
 - Hardening: admin_request_otp wrapped so email rate-limits don't 502; password reset attempts preserved across re-issues. Verified 74/74.
 
+## Implemented (2026-09-06, account management)
+- In-app Change Password (POST /api/auth/change-password) and Delete Account (POST /api/auth/delete-account, soft-delete + email scramble, blocks login/token) in Settings → Account. Verified 79/79. Satisfies App Store account-deletion requirement.
+
 ## Backlog
 - P1: Native iOS 26 NativeTabs variant; QR-code site access scanning; assessment sign-off/approval workflow.
 - P2: Multi-site support & roles/permissions; offline queue for assessments; incident photo display; enum validation + 404 on incident PATCH.

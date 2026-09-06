@@ -1,0 +1,42 @@
+{
+  "summary": "Backend-only verification of two new auth endpoints (POST /api/auth/change-password and POST /api/auth/delete-account) + full regression against test_security.py, test_password_reset.py, test_admin_softdelete.py. Added /app/backend/tests/test_change_pw_and_delete.py with 10 tests across 3 classes: TestChangePassword (4 tests: success + new-pw login OK + old-pw login 401; wrong current_password → 401 and account still usable; new_password < 6 chars → 422; no Authorization header → 401), TestDeleteAccount (3 tests: wrong password → 401 and /auth/me still 200 and login still 200; correct password → 200 {ok:true}, then old token → 401 on /auth/me, then login with same email+pw → 401 (email is scrambled to deleted+<id>@tk.invalid so email lookup misses), then re-register with same email → 200 with fresh token; no Authorization header → 401), TestSharedAccountsIntact (3 parametrized tests confirming safety@tk.com, worker@tk.com, halfbc175@gmail.com still login with their documented passwords AFTER the destructive tests ran). All 10 new tests pass. Regression: 33/33 test_security + 10/10 test_password_reset + 26/26 test_admin_softdelete = 69/69 pass. Grand total 79/79 = 100%. Only the 2 pre-existing cosmetic PytestRemovedIn10Warning warnings in test_security.py remain (class-scoped instance-method fixtures). No shared account passwords were mutated — every destructive test used a per-test uuid-prefixed throwaway account.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "test_security.py fixtures", "issue": "2 PytestRemovedIn10Warning about class-scoped instance-method fixtures. Cosmetic (non-blocking). Same as iter7."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_change_pw_and_delete.py",
+    "/app/test_reports/pytest/pytest_change_pw_delete.xml",
+    "/app/test_reports/pytest/pytest_iter8_regression.xml"
+  ],
+  "action_items": [
+    "None blocking. Both new endpoints behave exactly as specified. Optional cosmetic (carried over from iter7): add @classmethod to the 2 test_security.py class-scoped fixtures to silence PytestRemovedIn10Warning."
+  ],
+  "critical_code_review_comments": [
+    "server.py:426-431 change_password correctly verifies bcrypt current_password (401 on mismatch), then writes only password_hash via $set. Uses Depends(current_user) so unauth requests are 401 before body validation. new_password Field(min_length=6, max_length=128) → 422 on short pw (validated before user_from_token because Pydantic body validation runs after dependency in FastAPI... verified via 422 test with valid token). Good.",
+    "server.py:434-445 delete_account correctly verifies password (401), then atomically $sets deleted_at + original_email + email=deleted+<id>@tk.invalid. This is idempotent-safe (writing the same values again does nothing). Combined with user_from_token guard at line 123 (raises 401 if deleted_at set) and login guard at line 416 (raises 403 if deleted_at set) — but note: after email scramble, login by original email hits the pre-existing 401 branch at line 415 (find_one returns None), so the 403 branch at line 416 is only reachable if a client happened to know the scrambled email. Behaviour is correct either way (401 or 403 both acceptable per spec).",
+    "server.py:169-170 DeleteAccountIn has no min_length on password — an empty string would be accepted by Pydantic then rejected by bcrypt as wrong (401). Fine functionally.",
+    "server.py is 1025 lines — still past the 700-line split threshold flagged in prior iterations (non-blocking).",
+    "conftest.py:8 still has a hardcoded fallback URL — flagged in iter6/7, non-blocking."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_change_pw_and_delete.py (new — 10 tests, 3 classes, ~140 LOC)"
+  ],
+  "success_rate": {
+    "backend": "79/79 = 100% (10/10 new change-pw+delete-account tests + 33/33 test_security + 10/10 test_password_reset + 26/26 test_admin_softdelete)",
+    "frontend": "not tested (backend-only request)"
+  },
+  "seed_data_creation": "test_change_pw_and_delete.py registers per-test throwaway workers with email `tp_<12hex uuid>@example.com` / password `initialpw1` (or variant). No cleanup because they are throwaway and prefixed uniquely; the delete-account test soft-deletes its own throwaway. Shared accounts safety@tk.com / worker@tk.com / halfbc175@gmail.com are used ONLY for read-only login verification in TestSharedAccountsIntact.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run: `cd /app/backend && python -m pytest tests/test_change_pw_and_delete.py tests/test_security.py tests/test_password_reset.py tests/test_admin_softdelete.py -v` (~65s, no AI calls, no email calls). All new tests are hermetic (each registers its own throwaway). If change-password 422 test flakes, verify FastAPI still returns 422 (not 400) for Pydantic min_length violations.",
+  "rca_of_issue": "N/A — both new endpoints verified working end-to-end. Change-password: bcrypt verify → hash_pw new → $set password_hash. Delete-account: bcrypt verify → soft-delete via deleted_at + email scramble; token invalidated via user_from_token deleted_at check; email freed for re-registration via scramble."
+}

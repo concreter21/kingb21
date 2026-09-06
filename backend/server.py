@@ -120,6 +120,8 @@ async def user_from_token(token: str) -> dict:
         raise HTTPException(401, "Invalid or expired token")
     if not user:
         raise HTTPException(401, "User not found")
+    if user.get("deleted_at"):
+        raise HTTPException(401, "This account has been deleted")
     return user
 
 
@@ -157,6 +159,15 @@ class ResetIn(BaseModel):
     email: EmailStr
     code: str
     new_password: str = Field(min_length=6, max_length=128)
+
+
+class ChangePwIn(BaseModel):
+    current_password: str
+    new_password: str = Field(min_length=6, max_length=128)
+
+
+class DeleteAccountIn(BaseModel):
+    password: str
 
 
 class AssessIn(BaseModel):
@@ -402,12 +413,36 @@ async def login(body: LoginIn):
     user = await db.users.find_one({"email": body.email.lower().strip()})
     if not user or not verify_pw(body.password, user["password_hash"]):
         raise HTTPException(401, "Incorrect email or password")
+    if user.get("deleted_at"):
+        raise HTTPException(403, "This account has been deleted")
     return {"token": make_token(user["id"]), "user": public_user(user)}
 
 
 @api.get("/auth/me")
 async def me(user: dict = Depends(current_user)):
     return {"user": public_user(user)}
+
+
+@api.post("/auth/change-password")
+async def change_password(body: ChangePwIn, user: dict = Depends(current_user)):
+    if not verify_pw(body.current_password, user["password_hash"]):
+        raise HTTPException(401, "Current password is incorrect")
+    await db.users.update_one({"id": user["id"]}, {"$set": {"password_hash": hash_pw(body.new_password)}})
+    return {"ok": True}
+
+
+@api.post("/auth/delete-account")
+async def delete_account(body: DeleteAccountIn, user: dict = Depends(current_user)):
+    if not verify_pw(body.password, user["password_hash"]):
+        raise HTTPException(401, "Password is incorrect")
+    # Soft delete: mark account deleted (blocks login/token) and scramble email so it can be re-registered.
+    now = datetime.now(timezone.utc).isoformat()
+    await db.users.update_one({"id": user["id"]}, {"$set": {
+        "deleted_at": now,
+        "original_email": user["email"],
+        "email": f"deleted+{user['id']}@tk.invalid",
+    }})
+    return {"ok": True}
 
 
 @api.post("/auth/forgot-password")
