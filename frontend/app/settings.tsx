@@ -12,7 +12,7 @@ import { SectionLabel, Button, Input } from "@/src/components/ui";
 import { storage } from "@/src/utils/storage";
 import { useAuth } from "@/src/auth";
 
-const APP_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
+const DOWNLOAD_URL = process.env.EXPO_PUBLIC_APP_DOWNLOAD_URL || "";
 const OWNER_EMAIL = "halfbc175@gmail.com";
 
 export default function Settings() {
@@ -20,7 +20,7 @@ export default function Settings() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { user, changePassword, deleteAccount, logout } = useAuth();
+  const { user, changePassword, deleteAccount } = useAuth();
   const system = useColorScheme();
 
   const [aiAssist, setAiAssist] = useState(true);
@@ -84,10 +84,21 @@ export default function Settings() {
         <View style={s.section}><SectionLabel>Get the App</SectionLabel></View>
         <View style={s.qrPanel}>
           <View style={s.rowIcon}><DeviceMobile size={22} color={colors.onSurface} weight="bold" /></View>
-          <View style={s.qrBox}>
-            <QRCode value={APP_URL} size={130} color={colors.onSurface} backgroundColor={colors.surface} />
-          </View>
-          <Text style={s.qrHint}>Scan to open TK SafetyGuard on another device</Text>
+          {DOWNLOAD_URL ? (
+            <>
+              <View style={s.qrBox}>
+                <QRCode value={DOWNLOAD_URL} size={130} color={colors.onSurface} backgroundColor={colors.surface} />
+              </View>
+              <Text style={s.qrHint}>Scan to download TK SafetyGuard</Text>
+            </>
+          ) : (
+            <>
+              <View style={s.qrPlaceholder}>
+                <DeviceMobile size={40} color={colors.muted} weight="bold" />
+              </View>
+              <Text style={s.qrHint}>Your download QR appears here once the app is published to the App Store / Play Store.</Text>
+            </>
+          )}
         </View>
 
         {isOwner ? (
@@ -231,7 +242,8 @@ const useStyles = makeStyles((c) => ({
   rowDesc: { fontFamily: fonts.body, fontSize: 12, color: c.muted, marginTop: 1 },
   qrPanel: { alignItems: "center", gap: 12, paddingVertical: 20, borderTopWidth: 2, borderTopColor: c.borderStrong },
   qrBox: { padding: 16, borderWidth: 2, borderColor: c.borderStrong },
-  qrHint: { fontFamily: fonts.body, fontSize: 12, color: c.muted },
+  qrPlaceholder: { width: 162, height: 162, borderWidth: 2, borderStyle: "dashed", borderColor: c.border, alignItems: "center", justifyContent: "center" },
+  qrHint: { fontFamily: fonts.body, fontSize: 12, color: c.muted, textAlign: "center", paddingHorizontal: 24 },
   adminRow: { flexDirection: "row", alignItems: "center", gap: 14, paddingHorizontal: 20, paddingVertical: 16, borderTopWidth: 2, borderBottomWidth: 2, borderColor: c.borderStrong },
   adminIcon: { width: 40, height: 40, backgroundColor: c.error, alignItems: "center", justifyContent: "center" },
   adminTitle: { fontFamily: fonts.bodySemi, fontSize: 15, color: c.onSurface },
