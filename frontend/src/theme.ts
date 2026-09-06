@@ -109,10 +109,19 @@ export function riskColors(level: string, c: ThemeColors) {
   }
 }
 
-export function setColorScheme(scheme: ColorScheme | null) {
-  Appearance.setColorScheme?.(scheme);
+// Never pass null to the native Appearance module (crashes Expo Go on Android).
+// Resolve to a concrete scheme, defaulting to the device scheme or `light`.
+export function setColorScheme(scheme?: ColorScheme | null) {
+  const resolved: ColorScheme =
+    scheme === "light" || scheme === "dark"
+      ? scheme
+      : (Appearance.getColorScheme?.() === "dark" ? "dark" : defaultScheme);
+  try {
+    Appearance.setColorScheme?.(resolved);
+  } catch {
+    // ignore platforms that don't support setColorScheme
+  }
 }
-setColorScheme?.(themes.dark ? null : defaultScheme);
 
 export function useTheme(): { scheme: ColorScheme; colors: ThemeColors } {
   const system = useColorScheme();
