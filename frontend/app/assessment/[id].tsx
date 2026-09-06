@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, ScrollView, Pressable, ActivityIndicator } from "react-native";
+import { View, Text, ScrollView, Pressable, ActivityIndicator, Linking } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -225,10 +225,33 @@ export default function AssessmentDetail() {
                 </View>
                 {r.machinery.identifiers ? <Text style={s.infoLine}><Text style={s.swmsKey}>PLATE/SERIAL: </Text>{r.machinery.identifiers}</Text> : null}
                 {r.machinery.manual_reference ? <Text style={s.infoLine}><Text style={s.swmsKey}>MANUAL / STANDARD: </Text>{r.machinery.manual_reference}</Text> : null}
+                <View style={[s.verifyTag, r.manual_verified ? s.verifyLive : s.verifyKnowledge]}>
+                  <Text style={[s.verifyText, { color: r.manual_verified ? colors.onSuccess : colors.onSurfaceTertiary }]}>
+                    {r.manual_verified ? "● LIVE-VERIFIED FROM WEB SOURCES" : "○ FROM AI KNOWLEDGE (NO LIVE SOURCE)"}
+                  </Text>
+                </View>
                 <Text style={s.infoLine}><Text style={s.swmsKey}>GUARDING: </Text>{r.machinery.guarding_status}</Text>
                 <Text style={s.infoLine}><Text style={s.swmsKey}>ISOLATION: </Text>{r.machinery.isolation_note}</Text>
                 {r.machinery.compliance_note ? <Text style={s.infoLine}><Text style={s.swmsKey}>COMPLIANCE: </Text>{r.machinery.compliance_note}</Text> : null}
               </View>
+
+              {/* Live manual sources */}
+              {(r.manual_sources || []).length > 0 && (
+                <>
+                  <View style={s.sectionHead}><SectionLabel>Live Manual Sources</SectionLabel></View>
+                  <View style={s.sourcesCard}>
+                    {r.manual_sources.map((src: any, i: number) => (
+                      <Pressable key={i} style={s.sourceRow} onPress={() => src.url && Linking.openURL(src.url)} testID={`source-${i}`}>
+                        <Text style={s.sourceNum}>{i + 1}</Text>
+                        <View style={{ flex: 1 }}>
+                          <Text style={s.sourceTitle} numberOfLines={2}>{src.title || src.url}</Text>
+                          <Text style={s.sourceUrl} numberOfLines={1}>{src.url}</Text>
+                        </View>
+                      </Pressable>
+                    ))}
+                  </View>
+                </>
+              )}
 
               {/* Spec cross-reference */}
               {(r.machinery.spec_checks || []).length > 0 && (
@@ -360,6 +383,15 @@ const useStyles = makeStyles((c) => ({
   equipType: { fontFamily: fonts.mono, fontSize: 11, color: c.muted, marginTop: 1 },
   confBadge: { backgroundColor: c.surfaceInverse, paddingHorizontal: 8, paddingVertical: 4 },
   confText: { fontFamily: fonts.monoBold, fontSize: 10, color: c.onSurfaceInverse, letterSpacing: 0.5 },
+  verifyTag: { alignSelf: "flex-start", paddingHorizontal: 8, paddingVertical: 4, marginTop: 2 },
+  verifyLive: { backgroundColor: c.success },
+  verifyKnowledge: { backgroundColor: c.surfaceTertiary },
+  verifyText: { fontFamily: fonts.monoBold, fontSize: 10, letterSpacing: 0.5 },
+  sourcesCard: { borderWidth: 2, borderColor: c.borderStrong },
+  sourceRow: { flexDirection: "row", gap: 12, padding: 12, borderBottomWidth: 1, borderBottomColor: c.border },
+  sourceNum: { fontFamily: fonts.monoBold, fontSize: 14, color: c.muted, width: 16 },
+  sourceTitle: { fontFamily: fonts.bodyMed, fontSize: 13, color: c.onSurface },
+  sourceUrl: { fontFamily: fonts.mono, fontSize: 11, color: c.info, marginTop: 2, textDecorationLine: "underline" },
   specCard: { borderWidth: 2, borderColor: c.borderStrong, padding: 14, marginBottom: 12, gap: 4 },
   specTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 4 },
   specItem: { flex: 1, fontFamily: fonts.bodySemi, fontSize: 15, color: c.onSurface },

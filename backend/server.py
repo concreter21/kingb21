@@ -257,12 +257,76 @@ def _parse_json(text: str) -> dict:
     return json.loads(text)
 
 
+def perplexity_search(query: str) -> list:
+    """Live web search for equipment manuals / safety specs. Returns [] on any error
+    (e.g. missing/invalid key) so the assessment gracefully falls back to model knowledge."""
+    key = os.environ.get("PERPLEXITY_API_KEY")
+    if not key:
+        return []
+    try:
+        resp = requests.post(
+            "https://api.perplexity.ai/search",
+            headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+            json={"query": query, "max_results": 6},
+            timeout=30,
+        )
+        resp.raise_for_status()
+        return resp.json().get("results", []) or []
+    except Exception as e:
+        logger.error(f"perplexity search failed: {e}")
+        return []
+
+
+async def identify_equipment(image_base64: str) -> dict:
+    """Lightweight first-pass identification so we can search the web for the real manual."""
+    chat = LlmChat(api_key=EMERGENT_LLM_KEY, session_id=f"ident-{uuid.uuid4()}",
+                   system_message="You output only strict JSON.").with_model("gemini", AI_MODEL)
+    prompt = (
+        "Identify the machine/plant/electronic device in this photo. Read any visible brand, "
+        "model, nameplate or rating text. Return ONLY JSON: "
+        '{"brand":"","model":"","machine_type":"","identifiers":"","identification_confidence":"High|Medium|Low"}. '
+        "Use 'Unknown' where not determinable."
+    )
+    clean = image_base64.split(",")[-1]
+    try:
+        resp = await chat.send_message(UserMessage(text=prompt, file_contents=[ImageContent(image_base64=clean)]))
+        return _parse_json(resp if isinstance(resp, str) else str(resp))
+    except Exception as e:
+        logger.error(f"identify failed: {e}")
+        return {}
+
+
 async def run_ai(mode: str, image_base64: Optional[str], title: str, location: str, notes: str) -> dict:
     base_prompt = MODE_PROMPTS.get(mode, MODE_PROMPTS["risk"])
     context = f"\nContext provided by worker — Title: {title or 'N/A'}; Location: {location or 'N/A'}; Notes: {notes or 'N/A'}."
     full_prompt = base_prompt + context + "\n" + JSON_SCHEMA_INSTRUCTION
+
+    manual_sources: list = []
     if mode == "machinery":
         full_prompt += "\n" + MACHINERY_SCHEMA
+        # Live manual fetch: identify first, then search the web for the real manual/spec.
+        if image_base64:
+            ident = await identify_equipment(image_base64)
+            brand = (ident.get("brand") or "").strip()
+            model = (ident.get("model") or "").strip()
+            if brand and brand.lower() != "unknown":
+                query = f'{brand} {model} operator manual safety specifications guarding isolation'.strip()
+                results = await run_in_threadpool(perplexity_search, query)
+                manual_sources = [
+                    {"title": r.get("title", ""), "url": r.get("url", ""), "snippet": r.get("snippet", "")}
+                    for r in results[:6]
+                ]
+        if manual_sources:
+            evidence = "\n\n".join(
+                f"SOURCE {i}: {s['title']}\nURL: {s['url']}\n{s['snippet']}"
+                for i, s in enumerate(manual_sources, 1)
+            )
+            full_prompt += (
+                "\n\nLIVE WEB EVIDENCE — the following manufacturer manuals / safety specifications were "
+                "retrieved from the web for this exact make & model. Cross-reference the observed condition "
+                "against THIS evidence, quote the relevant limits, and cite the source URL in each spec_check "
+                "'reference' and in 'manual_reference'. Do not invent limits not supported here.\n" + evidence
+            )
 
     chat = LlmChat(api_key=EMERGENT_LLM_KEY, session_id=f"assess-{uuid.uuid4()}",
                    system_message="You output only strict JSON. You are an expert Australian WHS professional and machinery safety engineer.").with_model("gemini", AI_MODEL)
@@ -276,10 +340,10 @@ async def run_ai(mode: str, image_base64: Optional[str], title: str, location: s
     resp = await chat.send_message(msg)
     text = resp if isinstance(resp, str) else str(resp)
     try:
-        return _parse_json(text)
+        result = _parse_json(text)
     except Exception as e:
         logger.error(f"AI parse failed: {e} :: {text[:400]}")
-        return {
+        result = {
             "title": title or f"{mode.title()} Assessment",
             "summary": "AI could not produce a structured result. Please retake the photo with better lighting and framing.",
             "overall_risk_level": "Medium",
@@ -287,6 +351,10 @@ async def run_ai(mode: str, image_base64: Optional[str], title: str, location: s
             "recommended_actions": ["Retake photo", "Complete manual assessment"],
             "legislation_refs": ["WHS Act 2011"],
         }
+    if mode == "machinery":
+        result["manual_sources"] = manual_sources
+        result["manual_verified"] = bool(manual_sources)
+    return result
 
 
 # ---------------------------------------------------------------------------

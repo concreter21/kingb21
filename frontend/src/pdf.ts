@@ -89,7 +89,8 @@ export function buildHtml(a: any): string {
        <p><b>Isolation / LOTO:</b> ${esc(r.machinery.isolation_note)}</p>
        <p><b>Compliance:</b> ${esc(r.machinery.compliance_note)}</p>
        ${r.machinery.warranty_insurance_note ? `<p><b>Warranty / Insurance:</b> ${esc(r.machinery.warranty_insurance_note)}</p>` : ""}
-       ${specRows}`
+       ${specRows}
+       ${(r.manual_sources || []).length ? `<h2>Live Manual Sources</h2><ul>${(r.manual_sources || []).map((sc: any) => `<li>${esc(sc.title || sc.url)} — <span style="color:#1D4ED8">${esc(sc.url)}</span></li>`).join("")}</ul>` : ""}`
     : "";
 
   const actions = (r.recommended_actions || []).map((x: string) => `<li>${esc(x)}</li>`).join("");

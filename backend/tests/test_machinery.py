@@ -157,6 +157,21 @@ class TestMachineryAssess:
         else:
             assert isinstance(doc["hazard_incident_id"], str) and doc["hazard_incident_id"]
 
+    def test_graceful_perplexity_fallback_fields(self, machinery_result):
+        """Perplexity key is invalid (401) → manual_sources should be [] and
+        manual_verified False, and the assessment should still be HTTP 200 with
+        a valid machinery object (already asserted above). No 500."""
+        res = machinery_result.get("result") or {}
+        assert "manual_sources" in res, f"missing manual_sources: {list(res.keys())}"
+        assert isinstance(res["manual_sources"], list), \
+            f"manual_sources must be a list, got {type(res['manual_sources'])}"
+        # Invalid key → empty list expected
+        assert res["manual_sources"] == [], \
+            f"expected empty manual_sources given invalid key, got {res['manual_sources']}"
+        assert "manual_verified" in res, f"missing manual_verified: {list(res.keys())}"
+        assert res["manual_verified"] is False, \
+            f"manual_verified must be False on fallback, got {res['manual_verified']}"
+
     def test_machinery_object_keys(self, machinery_result):
         m = (machinery_result.get("result") or {}).get("machinery")
         assert isinstance(m, dict), f"expected machinery dict, got {type(m)}"
@@ -268,3 +283,11 @@ class TestNonMachineryRegression:
         # For non-machinery modes we don't set equipment_outcome / hazard_incident_id
         assert risk_result.get("equipment_outcome") in (None, "")
         assert risk_result.get("hazard_incident_id") in (None, "")
+
+    def test_risk_result_has_no_manual_sources(self, risk_result):
+        """Non-machinery modes must NOT attach manual_sources/manual_verified."""
+        res = risk_result.get("result") or {}
+        assert "manual_sources" not in res, \
+            f"non-machinery mode leaked manual_sources: {res.get('manual_sources')}"
+        assert "manual_verified" not in res, \
+            f"non-machinery mode leaked manual_verified: {res.get('manual_verified')}"

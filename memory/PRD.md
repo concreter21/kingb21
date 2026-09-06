@@ -20,8 +20,7 @@ Clone of https://thekitchenary.base44.app — an all-in-one OHS&E management pla
 - Safety officer / supervisor: manage LOTO, review assessments, export PDFs, define traffic zones.
 - Contractor / visitor: induction via site access.
 
-## Implemented (2026-09-05)
-- Email/password auth (register/login/me) with JWT + role selection.
+## Implemented (2026-09-05)- Email/password auth (register/login/me) with JWT + role selection.
 - Home dashboard: live metrics (open incidents, active locks, on-site, assessments) + module hub + recent assessments.
 - AI Assess: camera + gallery capture, 4 modes (Risk, SWMS, Worker Density, Machinery), Gemini vision → structured WHS assessment, photo stored to object storage.
 - Assessment detail: hazard/risk register, SWMS steps, density, machinery, recommended actions, legislation refs, PDF export (expo-print/sharing).
@@ -31,6 +30,12 @@ Clone of https://thekitchenary.base44.app — an all-in-one OHS&E management pla
 - Incident reporting: category/severity, list, close.
 - Documents history list.
 - Backend tested: 21/21 passing.
+
+## Implemented (2026-09-05, later)
+- Security hardening (post-audit): role gating via OFFICER_ACCESS_CODE, LOTO/incident owner-or-privileged checks + status allowlists, file ACL + path-traversal guard, assessment visibility scoping, removed JWT fallback secret, CORS credentials off, upload size cap. Verified 33/33.
+- AI Machinery assessor upgrade: equipment identification (brand/model/plate), spec cross-reference (Pass/Fail per item), warranty/insurance notes, PASS/HAZARD outcome, auto hazard-report on failure, Equipment Register screen. Verified.
+- LIVE MANUAL FETCH: machinery flow identifies brand/model, then Perplexity Search API fetches the real manufacturer manual/safety-spec, Gemini cross-references cited sources; source links shown in app + PDF. Graceful fallback to model knowledge when key invalid (manual_verified flag). NOTE: current PERPLEXITY_API_KEY is a Gemini-style token (401) → running in fallback; replace with a valid `pplx-` key to activate.
+- Visual polish: first-launch onboarding intro screen (branded, feature highlights, Get Started), persisted via storage.
 
 ## Backlog
 - P1: Native iOS 26 NativeTabs variant; QR-code site access scanning; assessment sign-off/approval workflow.
