@@ -114,3 +114,15 @@ def otp_email_html(code: str) -> str:
         '<p style="font-size:12px;color:#888">Sent by TK SafetyGuard. We never ask for your password by email.</p>'
         '</td></tr></table>'
     )
+
+
+def reset_email_html(code: str) -> str:
+    return (
+        '<table role="presentation" width="100%"><tr><td style="padding:24px;font-family:Arial,sans-serif;color:#111">'
+        '<p style="font-size:12px;letter-spacing:2px;color:#71717A">TK SAFETYGUARD — PASSWORD RESET</p>'
+        '<p>Use this code to reset your password:</p>'
+        f'<p style="font-size:32px;font-weight:bold;letter-spacing:6px">{code}</p>'
+        '<p>This code expires in 15 minutes. If you did not request a password reset, you can safely ignore this email.</p>'
+        '<p style="font-size:12px;color:#888">Sent by TK SafetyGuard. We never ask for your password by email.</p>'
+        '</td></tr></table>'
+    )

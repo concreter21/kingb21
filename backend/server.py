@@ -21,7 +21,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel, Field, EmailStr
 
 from emergentintegrations.llm.chat import LlmChat, UserMessage, ImageContent
-from email_util import send_email, otp_email_html
+from email_util import send_email, otp_email_html, reset_email_html
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / ".env")
@@ -147,6 +147,16 @@ class RegisterIn(BaseModel):
 class LoginIn(BaseModel):
     email: EmailStr
     password: str
+
+
+class ForgotIn(BaseModel):
+    email: EmailStr
+
+
+class ResetIn(BaseModel):
+    email: EmailStr
+    code: str
+    new_password: str = Field(min_length=6, max_length=128)
 
 
 class AssessIn(BaseModel):
@@ -398,6 +408,52 @@ async def login(body: LoginIn):
 @api.get("/auth/me")
 async def me(user: dict = Depends(current_user)):
     return {"user": public_user(user)}
+
+
+@api.post("/auth/forgot-password")
+async def forgot_password(body: ForgotIn):
+    email = body.email.lower().strip()
+    user = await db.users.find_one({"email": email})
+    # Only send if the account exists, but always return ok (don't reveal existence).
+    if user:
+        now = datetime.now(timezone.utc)
+        existing = await db.password_resets.find_one({"email": email})
+        # Per-email cooldown to prevent email spam / enumeration timing abuse.
+        if existing and existing.get("last_sent_at"):
+            if (now - datetime.fromisoformat(existing["last_sent_at"])).total_seconds() < 60:
+                return {"ok": True}
+        code = f"{secrets.randbelow(1000000):06d}"
+        await db.password_resets.update_one(
+            {"email": email},
+            {"$set": {"code": code, "expires_at": (now + timedelta(minutes=15)).isoformat(),
+                      "last_sent_at": now.isoformat()},
+             "$setOnInsert": {"attempts": 0}}, upsert=True)
+        try:
+            await send_email(to=email, subject="Reset your TK SafetyGuard password", html=reset_email_html(code))
+        except Exception as e:
+            logger.error(f"reset email failed: {e}")
+    return {"ok": True}
+
+
+@api.post("/auth/reset-password")
+async def reset_password(body: ResetIn):
+    email = body.email.lower().strip()
+    rec = await db.password_resets.find_one({"email": email})
+    if not rec:
+        raise HTTPException(400, "Request a reset code first")
+    if rec.get("attempts", 0) >= 5:
+        raise HTTPException(429, "Too many attempts — request a new code")
+    if datetime.now(timezone.utc) > datetime.fromisoformat(rec["expires_at"]):
+        raise HTTPException(400, "Code expired — request a new one")
+    if not secrets.compare_digest(str(body.code).strip(), rec["code"]):
+        await db.password_resets.update_one({"email": email}, {"$inc": {"attempts": 1}})
+        raise HTTPException(401, "Incorrect code")
+    user = await db.users.find_one({"email": email})
+    if not user:
+        raise HTTPException(404, "Account not found")
+    await db.users.update_one({"email": email}, {"$set": {"password_hash": hash_pw(body.new_password)}})
+    await db.password_resets.delete_one({"email": email})
+    return {"token": make_token(user["id"]), "user": public_user(user)}
 
 
 # ---------------------------------------------------------------------------
@@ -820,7 +876,10 @@ async def admin_request_otp(user: dict = Depends(current_user)):
         {"email": user["email"].lower()},
         {"$set": {"code": code, "expires_at": (datetime.now(timezone.utc) + timedelta(minutes=10)).isoformat(),
                   "attempts": 0}}, upsert=True)
-    await send_email(to=user["email"], subject="Your TK SafetyGuard admin code", html=otp_email_html(code))
+    try:
+        await send_email(to=user["email"], subject="Your TK SafetyGuard admin code", html=otp_email_html(code))
+    except Exception as e:
+        logger.error(f"admin otp email failed: {e}")
     return {"ok": True, "sent_to": user["email"]}
 
 

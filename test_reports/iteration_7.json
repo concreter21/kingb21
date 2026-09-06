@@ -1,0 +1,42 @@
+{
+  "summary": "Backend-only verification of the 3 fixes applied on top of the email-OTP password-reset + admin-2FA flow. Added new suite /app/backend/tests/test_password_reset_fixes.py (5 tests) covering: (Fix 1 HIGH) admin_request_otp now wraps send_email in try/except — POST /api/admin/request-otp as owner returns HTTP 200 {ok:true, sent_to} even if Resend is throttled, a 6-digit numeric code is persisted at db.admin_otps.code with attempts=0 and future expires_at, POST /api/admin/verify-otp with that code returns admin_token, and that admin_token successfully calls GET /api/admin/users (returns list with no _id/password_hash); non-owner (worker@tk.com) → 403, non-admin token on /admin/users → 401/403; (Fix 2) forgot-password uses $setOnInsert on attempts — after 5 wrong /reset-password (5×401 then 429), re-issuing /forgot-password for the same email returns 200 but attempts stays >=5 in Mongo (NOT reset to 0), code and last_sent_at unchanged, and a subsequent /reset-password with the correct real code STILL returns 429 (lockout persists across re-issue); (Fix 3) 60s per-email cooldown — two /forgot-password calls within 60s both return 200 {ok:true}, but the second call does NOT rotate code, does NOT refresh last_sent_at, and does NOT slide expires_at. Regression: full test_password_reset.py (10/10), test_security.py (33/33), test_admin_softdelete.py (26/26 — including TestAdmin2FA which failed in iter6 purely due to email 429 502 now passes). Total: 74/74 = 100% pass. The 2 pre-existing PytestRemovedIn10Warning warnings in test_security.py remain (cosmetic only, non-blocking).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "test_security.py fixtures", "issue": "2 PytestRemovedIn10Warning warnings about class-scoped instance-method fixtures. Cosmetic; add @classmethod to silence. Non-blocking."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_password_reset_fixes.py",
+    "/app/test_reports/pytest/pytest_iter7_fixes.xml",
+    "/app/test_reports/pytest/pytest_iter7_regression.xml"
+  ],
+  "action_items": [
+    "None blocking. All 3 fixes verified working end-to-end against the live preview. Optional cosmetic: add @classmethod to the 2 test_security.py class-scoped fixtures to silence PytestRemovedIn10Warning."
+  ],
+  "critical_code_review_comments": [
+    "server.py:414-435 forgot_password correctly implements 60s per-email cooldown: reads existing.last_sent_at, if within 60s returns {ok:true} WITHOUT rotating code/expires_at/last_sent_at (early return before update_one). Uses $setOnInsert on attempts so the counter is preserved across re-issues (only set to 0 on first insert). send_email wrapped in try/except and logged. Correct against enumeration timing since existing branch still does one DB read + short-circuit.",
+    "server.py:438-456 reset_password correctly guards attempts>=5 BEFORE code check (429), uses secrets.compare_digest, and deletes the reset record only on success. Combined with $setOnInsert this makes the 5-attempt lock unbypassable via re-issue.",
+    "server.py:870-883 admin_request_otp now correctly wraps send_email in try/except and always returns {ok:true, sent_to:<email>}. Code is persisted BEFORE the email attempt so admin login stays functional even when Resend returns 429. Owner-only guard (line 872) still enforced with 403 for non-owner.",
+    "server.py is 990 lines — still past the 700-line split threshold flagged in prior iterations (non-blocking).",
+    "conftest.py:8 still has a hardcoded fallback URL — flagged in iter6, non-blocking."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_password_reset_fixes.py (new — 5 tests, 3 test classes, ~200 LOC)"
+  ],
+  "success_rate": {
+    "backend": "74/74 = 100% (5/5 new fix tests + 10/10 test_password_reset + 33/33 test_security + 26/26 test_admin_softdelete). test_admin_softdelete which failed in iter6 due to email 429 → 502 is now green because fix #1 stops that from surfacing as 502.",
+    "frontend": "not tested (backend-only request)"
+  },
+  "seed_data_creation": "test_password_reset_fixes.py registers per-test throwaway users prefixed 'test_reset_<uuid>@example.com' and cleans them up (users + password_resets) in fixture teardown. TestAdminOtpResilience uses the seeded owner halfbc175@gmail.com and worker@tk.com strictly READ-ONLY (login only) — shared passwords preserved.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run: `cd /app/backend && python -m pytest tests/test_password_reset_fixes.py tests/test_password_reset.py tests/test_security.py tests/test_admin_softdelete.py -v` (~60s, no AI). test_password_reset_fixes.py reads OTPs directly from Mongo (db.admin_otps.code, db.password_resets.code) so it works even when Resend/Emergent email service is rate-limited. If the 60s-cooldown test flakes (extremely unlikely), it is because the same throwaway email had a prior forgot in the same second — the fixture uses a fresh uuid per test so this shouldn't happen.",
+  "rca_of_issue": "N/A — all 3 fixes verified as intended. Fix 1 confirmed by observing 200 response with persisted code in db.admin_otps and successful admin_token verification. Fix 2 confirmed by observing attempts persist >=5 and 429 on real code after re-issue. Fix 3 confirmed by observing code/last_sent_at/expires_at unchanged between two rapid forgot-password calls."
+}

@@ -80,6 +80,9 @@ export default function Login() {
             </View>
           ) : null}
           <Button title="LOG IN" onPress={onLogin} loading={loading} testID="login-submit-button" />
+          <Pressable onPress={() => router.push("/(auth)/forgot")} testID="forgot-password-link" style={s.forgotWrap}>
+            <Text style={s.forgotLink}>FORGOT PASSWORD?</Text>
+          </Pressable>
         </View>
 
         <View style={s.footer}>
@@ -115,6 +118,8 @@ const useStyles = makeStyles((c) => ({
   form: { gap: 16, marginTop: 28 },
   errorBox: { backgroundColor: c.error, padding: 12 },
   errorText: { color: c.onError, fontFamily: fonts.bodyMed, fontSize: 13 },
+  forgotWrap: { alignSelf: "center", paddingVertical: 4 },
+  forgotLink: { fontFamily: fonts.mono, fontSize: 12, color: c.muted, letterSpacing: 1, textDecorationLine: "underline" },
   footer: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 28, justifyContent: "center" },
   footerText: { fontFamily: fonts.body, color: c.muted, fontSize: 13 },
   link: { fontFamily: fonts.monoBold, color: c.onSurface, fontSize: 13, letterSpacing: 1, textDecorationLine: "underline" },

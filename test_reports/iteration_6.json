@@ -1,0 +1,49 @@
+{
+  "summary": "Backend-only verification of the new email-OTP FORGOT/RESET password flow (POST /api/auth/forgot-password + POST /api/auth/reset-password). New suite /app/backend/tests/test_password_reset.py (10 tests) verifies: (1) forgot-password for an EXISTING user returns 200 {ok:true} and stores a 6-digit numeric code with a future ISO expires_at and attempts=0 at db.password_resets; (2) forgot-password for a NON-EXISTENT email returns 200 {ok:true} without creating any record (no account-enumeration leak); (3) full happy-path reset: reset-password with the correct code returns {token, user}, new password logs in (200), old password rejected (401), db.password_resets record deleted, and replaying the same code returns 400; (4) validation: no prior request -> 400, new_password < 6 chars -> 422 (Pydantic), 5 wrong codes each -> 401 and increment attempts, 6th attempt (even with correct code) -> 429 lockout, force-expired record -> 400. Regression: full test_security.py suite (33/33) passes. Register role gating still enforced (Worker no code 200, Safety Officer without code 403, with TK-SAFETY-2026 200), and login+/auth/me still works for safety@tk.com, worker@tk.com and owner halfbc175@gmail.com (verified inside test_password_reset.py::TestAuthRegression). NOT A REGRESSION FROM THIS FEATURE but MUST BE FLAGGED: test_admin_softdelete.py::TestAdmin2FA and dependent classes fail (2 failed + 6 errors, 18 passed) because the Emergent email service is currently returning HTTP 429 'email rate limit exceeded' (see /var/log/supervisor/backend.err.log). admin_request_otp does NOT wrap send_email in try/except (server.py:873), so any Resend hiccup surfaces to the caller as HTTP 502 and blocks the admin console. The new forgot_password correctly wraps send_email in try/except so it stays 200 even when the mail provider is throttled. Total: 43/51 pass (43/43 = 100% of code under test; the remaining 8 fail purely on upstream email rate limit).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/admin/request-otp", "issue": "send_email is NOT wrapped in try/except (server.py:873). When the Emergent email provider returns 429 'rate limited' the endpoint surfaces HTTP 502 to the client and admin 2FA becomes impossible. Mirror the new forgot_password pattern (log + swallow) so admin login is not gated on external rate limits. Repro: current preview is 429'd and admin OTP request returns 502 (see backend.err.log)."},
+      {"endpoint": "POST /api/auth/reset-password (attempt counter)", "issue": "attempts counter is incremented on wrong code but is NOT incremented on stale/expired code checks — a stalled attacker who racks up 4 wrong codes could re-request a new code and reset the counter. Consider preserving attempts across resends (only reset on successful reset) or expiring after N total attempts including expired ones. Non-blocking, defence-in-depth."},
+      {"endpoint": "POST /api/auth/forgot-password", "issue": "Response identical for existing vs non-existing user (correct — no enumeration), but current implementation performs a real DB write & Resend call for the existing branch which produces a measurable latency delta enumerators could exploit. Optional: add a constant-time sleep or always queue a no-op for the non-existent branch. Non-blocking."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_password_reset.py",
+    "/app/test_reports/pytest/pytest_password_reset.xml",
+    "/app/test_reports/pytest/pytest_security_regression.xml",
+    "/app/test_reports/pytest/pytest_admin_regression.xml"
+  ],
+  "action_items": [
+    "Wrap send_email() in admin_request_otp (server.py ~line 873) in try/except like forgot_password does, so admin 2FA still returns 200 when Resend is rate-limited. Currently 502 blocks the entire admin console during Resend throttling. Priority: HIGH (blocks admin login on this preview right now).",
+    "Optional: preserve/carry over the password_resets.attempts count when the same email calls forgot-password again, so an attacker cannot reset the counter by re-issuing forgot-password. Currently the upsert sets attempts:0 on every request (server.py:424). Priority: MEDIUM (defence-in-depth).",
+    "Optional: add a token-bucket / cooldown on forgot-password per-email to prevent SMS/email spam against real users (currently unlimited requests). Priority: MEDIUM.",
+    "Optional (cosmetic): silence the two class-scoped-instance-method PytestRemovedIn10Warning warnings in test_security.py by adding @classmethod to the fixtures. Non-blocking."
+  ],
+  "critical_code_review_comments": [
+    "server.py:413-429 forgot_password correctly (a) always returns 200 ok:true, (b) writes to db.password_resets only when the user exists, (c) upserts with expires_at = now+15m and attempts=0, (d) wraps send_email in try/except so a mail-provider outage does not block the endpoint. Good defence against account enumeration.",
+    "server.py:432-450 reset_password correctly (a) checks record exists (400 else), (b) rejects >=5 attempts with 429 BEFORE checking the code so the counter cannot be bypassed, (c) checks expires_at (400), (d) uses secrets.compare_digest for constant-time code compare, (e) increments attempts on wrong code (401), (f) hashes the new password with bcrypt via hash_pw and deletes the reset record on success, (g) returns {token, user} identical shape to /auth/login so the client can auto-login.",
+    "Pydantic ResetIn enforces new_password min_length=6 max_length=128 so short passwords are rejected with 422 before the handler runs. Consistent with RegisterIn.",
+    "email_util.reset_email_html renders an https-only, no-form, no-cred-ask, no-anchor-mismatch email that passes _assert_safe_email — G2/G3 email safety guard rails are honoured.",
+    "server.py is 981 lines — still past the 700-line split threshold flagged in iter4/iter5 (non-blocking).",
+    "conftest.py:8 has a hardcoded fallback URL 'https://whs-safety-hub.preview.emergentagent.com' — acceptable for the shared test harness but violates the project rule 'omit default values so missing config fails fast'. Non-blocking."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_password_reset.py (new — 10 tests, ~200 LOC)"
+  ],
+  "success_rate": {
+    "backend": "43/51 = 84.3% overall (43/43 = 100% of new feature + auth regression + security regression; remaining 2 failed + 6 errors are all in test_admin_softdelete admin-OTP path and are caused by Emergent email service HTTP 429 rate-limit, not by this feature)",
+    "frontend": "not tested (backend-only request)"
+  },
+  "seed_data_creation": "test_password_reset.py creates per-test throw-away users prefixed 'test_reset_<uuid>@example.com' via /api/auth/register and cleans up (users + password_resets rows) in the fixture teardown. Shared accounts safety@tk.com / worker@tk.com / halfbc175@gmail.com are only READ (login), never written to, so their documented passwords are preserved.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run:  `cd /app/backend && python -m pytest tests/test_password_reset.py tests/test_security.py -v` (~55s, no AI, no email). test_password_reset.py reads the 6-digit OTP directly from Mongo db.password_resets.code — DO NOT try to intercept the outbound Resend email. The admin OTP path (test_admin_softdelete.py::TestAdmin2FA) currently 502s on this preview because Emergent email is HTTP 429 rate-limited; verify by tailing /var/log/supervisor/backend.err.log for 'Email send failed: 429'. Wait 5-10 minutes or ask ops to lift the rate limit before re-running the admin suite. When admin_request_otp is patched to swallow email errors (see action_items #1), the admin suite will pass unconditionally.",
+  "rca_of_issue": "Admin OTP 502 (test_admin_softdelete failures) — Repro: POST /api/admin/request-otp with valid owner Bearer token → 502 with Cloudflare error page. Backend log shows 'tk_email ERROR Email send failed: 429 email rate limit exceeded'. Root cause: Emergent shared email service (integrations.emergentagent.com/api/v1/email/send) is throttling this key, email_util.send_email re-raises as HTTPException(502), admin_request_otp does not catch it. Mitigation: (a) wrap send_email in try/except inside admin_request_otp like forgot_password does, still returning {ok:true, sent_to:...} so admin can attempt again; (b) request higher quota or a dedicated Resend key for this preview. Not a regression from the forgot/reset feature — that new endpoint already handles this case gracefully."
+}

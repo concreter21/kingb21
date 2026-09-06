@@ -9,6 +9,8 @@ type AuthState = {
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, name: string, role: string, accessCode?: string) => Promise<void>;
   logout: () => Promise<void>;
+  forgotPassword: (email: string) => Promise<void>;
+  resetPassword: (email: string, code: string, newPassword: string) => Promise<void>;
 };
 
 const AuthContext = createContext<AuthState>({} as AuthState);
@@ -49,8 +51,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
   };
 
+  const forgotPassword = async (email: string) => {
+    await api.post("/auth/forgot-password", { email });
+  };
+
+  const resetPassword = async (email: string, code: string, newPassword: string) => {
+    const res = await api.post("/auth/reset-password", { email, code, new_password: newPassword });
+    await setToken(res.token);
+    setUser(res.user);
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, register, logout, forgotPassword, resetPassword }}>
       {children}
     </AuthContext.Provider>
   );
