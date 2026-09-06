@@ -1,0 +1,31 @@
+{
+  "summary": "Frontend regression smoke test after `expo install --fix` bumped expo 57.0.19→57.0.20 and expo-router 57.0.18→57.0.19 (Expo Go SDK mismatch fix). Verified via mobile viewport (390x844) on preview URL https://whs-safety-hub.preview.emergentagent.com. All 5 requested checks PASS: (1) Onboarding renders — TK SAFETYGUARD landing with three feature cards + GET STARTED, no red-box/error screen. (2) Login works — worker@tk.com/test1234 authenticates and lands on Home dashboard showing metrics (9 Open Incidents · 3 Active Locks · 0 On Site · 21 Assessments) + SAFETY MODULES (AI Assess, Equipment Register, LOTO Register, Site Access, Traffic Mgmt, Incidents, Documents) + Recent Assessments list. (3) Core navigation works: /assess renders 'AI ASSESS · Live risk assessment' with segmented Risk/SWMS/Density/Machine (data-testid=mode-risk, mode-swms, mode-density all present; mode-machine key is `machinery` per code — segment visually rendered, non-issue); /registers renders 'LOTO REGISTER · 3 active lockout / tagout' with LOCKED/RELEASED lock rows and CLEAR + add buttons; /access renders 'SITE ACCESS · Arndell Park · digital sign-in' with SCAN GATE TO SIGN IN button (data-testid=scan-gate present), Sign In / Sign Out, Visitor Induction, gate QR (16 SVG elements) and Access Log; /profile → gear opens /settings with PREFERENCES (AI Assist ON toggle, Dark Mode toggle), GET THE APP (download QR to open on another device), ACCOUNT (Change Password, Delete Account in red). (4) Forgot password link — data-testid=forgot-password-link on /login navigates to reset screen showing 'Reset password · We'll email you a 6-digit code to reset your password' + WORK EMAIL input + EMAIL ME A CODE button + BACK. (5) Zero console errors and zero page errors captured across the full flow (onboarding→login→forgot→home→assess→registers→access→profile→settings). Expo server log clean; only pre-existing electron-sandbox React DevTools warning (unrelated to app). Version bump introduced no regressions.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/test_reports/iteration_9.json"
+  ],
+  "action_items": [
+    "None. Version bump (expo 57.0.20 / expo-router 57.0.19) is a clean regression-safe upgrade — user should now be able to open the app in Expo Go without the SDK mismatch error.",
+    "Optional cosmetic (non-blocking): assess.tsx line 152 uses testID `mode-${m.key}` where the 4th mode's key is 'machinery' (label 'Machine'). If external test suites expect testID='mode-machine', either rename the key to 'machine' or add an explicit alias — purely a testing-convention nit, not a functional bug."
+  ],
+  "critical_code_review_comments": [
+    "package.json versions verified: expo=57.0.20, expo-router=57.0.19, react=19.2.3, react-native=0.86.3, react-native-web=0.21.2. Matches what Expo Go SDK 57 expects.",
+    "No app code/logic changed since iter8; this is a dependency-only bump. No new lint/type issues introduced."
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "not tested this iteration (frontend-only request); last green = 79/79 from iter8",
+    "frontend": "5/5 smoke checks = 100% (onboarding load, login→home, 4-tab navigation, forgot-password reachability, zero console errors)"
+  },
+  "seed_data_creation": "None. Used pre-seeded worker@tk.com account for read-only navigation. No writes performed.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "expo→57.0.20 and expo-router→57.0.19 verified regression-safe on the web preview. If user reports Expo Go still shows an error, ask them to force-close Expo Go and re-scan the QR (client-side cache), and confirm they are on Expo Go build for SDK 57. Frontend URL: https://whs-safety-hub.preview.emergentagent.com. Login worker@tk.com/test1234. LOTO route is /registers (not /loto). Assess machine-mode testID is `mode-machinery`.",
+  "rca_of_issue": "Reported bug: 'Expo Go could not open app — error kept showing.' RCA: Expo Go SDK-57 client expects patch versions expo>=57.0.20 and expo-router>=57.0.19; project was pinned at 57.0.19 / 57.0.18, so the Metro bundle handshake failed. Fix: `expo install --fix` bumped both to matching versions; `expo install --check` now reports 'Dependencies are up to date'. Verified: web preview loads cleanly, all major routes render, no console errors — no code regressions from the bump."
+}
