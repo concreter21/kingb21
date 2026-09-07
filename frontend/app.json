@@ -18,7 +18,7 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#111111"
+        "backgroundColor": "#E57C23"
       },
       "package": "com.emergent.whssafetyhub.wjazms",
       "permissions": ["android.permission.CAMERA", "android.permission.READ_MEDIA_IMAGES"]
@@ -36,7 +36,7 @@
           "image": "./assets/images/splash-image.png",
           "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#111111"
+          "backgroundColor": "#0A4344"
         }
       ],
       [

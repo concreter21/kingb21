@@ -33,15 +33,15 @@ export default function RootLayout() {
           <KeyboardProvider>
           <QueryClientProvider client={queryClient}>
             <AuthProvider>
-              <StatusBar style="auto" />
+              <StatusBar style="light" />
               {fontsLoaded ? (
-                <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: "#FFFFFF" } }}>
+                <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: "#0A4344" } }}>
                   <Stack.Screen name="index" />
                   <Stack.Screen name="(auth)" />
                   <Stack.Screen name="(tabs)" />
                 </Stack>
               ) : (
-                <View style={{ flex: 1, backgroundColor: "#FFFFFF" }} />
+                <View style={{ flex: 1, backgroundColor: "#0A4344" }} />
               )}
             </AuthProvider>
           </QueryClientProvider>

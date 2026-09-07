@@ -65,3 +65,10 @@ Clone of https://thekitchenary.base44.app — an all-in-one OHS&E management pla
 ## Implemented (2026-09-07, email report + global help)
 - Email the report: POST /api/assessments/{id}/email {recipient} renders the assessment server-side (email_util.assessment_report_html — inline-CSS, table layout, no external anchors) and sends via Resend. Auth + visibility check + EmailStr validation + per-user rate limit (15/hr). Frontend: "EMAIL THIS REPORT" input + send button added ABOVE the Export PDF button on the assessment detail screen, with sent/error states. (Managed email sends the report as an HTML body, not a binary PDF attachment — the managed provider payload supports html only.)
 - Global Help/Support FAB: moved from Home into the tabs layout (src/components/SupportFab.tsx) so it appears on every tab (Home/Assess/LOTO/Access/Profile); lifted above the capture bar on the Assess tab to avoid overlap. Verified: 16/16 backend tests + full frontend sweep pass.
+
+## Implemented (2026-09-07, The Kitchenary brand rebrand)
+- Recoloured the whole app to match thekitchenary.com.au: deep teal #0A4344 surfaces, orange #E57C23 accents, white text, crisp white outlines (single brand palette applied to both light/dark schemes in src/theme.ts). Functional risk colours (green/amber/red) retained.
+- Fonts switched to Montserrat (free geometric match for the site's Gotham/Museo Sans). Static weights (Light/Regular/Medium/SemiBold/Bold) instanced from the Montserrat variable font into assets/fonts and loaded via expo-font; theme fonts.* keys remapped so all screens update automatically.
+- Added The Kitchenary white wordmark logo (assets/images/tk-logo-white.png) to the top of the Home dashboard header.
+- App icon / adaptive icon / favicon / splash regenerated to the brand mark: orange circle with white fork & knife (built from the site's fork asset). app.json splash bg #0A4344, adaptive bg #E57C23. Root Stack bg + StatusBar set to teal/light.
+- Verified via screenshots across intro, login, home, assess (permission panel toned to teal), profile, and assessment detail — cohesive, no glitches. No backend changes.

@@ -369,12 +369,12 @@ const useStyles = makeStyles((c) => ({
   tmplRowName: { fontFamily: fonts.bodySemi, fontSize: 15, color: c.onSurface },
   tmplRowMeta: { fontFamily: fonts.mono, fontSize: 11, color: c.muted, marginTop: 2, letterSpacing: 0.5 },
 
-  permBox: { flex: 1, backgroundColor: c.brandPrimary, alignItems: "center", justifyContent: "center", padding: 32, gap: 12 },
-  permTitle: { fontFamily: fonts.display, fontSize: 18, color: c.onBrandPrimary, letterSpacing: 1 },
-  permText: { fontFamily: fonts.body, fontSize: 13, color: c.onBrandPrimary, textAlign: "center", opacity: 0.8, lineHeight: 20 },
-  permBtn: { backgroundColor: c.surface, paddingHorizontal: 24, paddingVertical: 14, marginTop: 8 },
-  permBtnText: { fontFamily: fonts.monoBold, fontSize: 13, color: c.onSurface, letterSpacing: 1 },
-  permOr: { fontFamily: fonts.mono, fontSize: 11, color: c.onBrandPrimary, opacity: 0.6, marginTop: 4 },
+  permBox: { flex: 1, backgroundColor: c.surface, alignItems: "center", justifyContent: "center", padding: 32, gap: 12 },
+  permTitle: { fontFamily: fonts.display, fontSize: 18, color: c.onSurface, letterSpacing: 1 },
+  permText: { fontFamily: fonts.body, fontSize: 13, color: c.muted, textAlign: "center", lineHeight: 20 },
+  permBtn: { backgroundColor: c.brandPrimary, paddingHorizontal: 24, paddingVertical: 14, marginTop: 8 },
+  permBtnText: { fontFamily: fonts.monoBold, fontSize: 13, color: c.onBrandPrimary, letterSpacing: 1 },
+  permOr: { fontFamily: fonts.mono, fontSize: 11, color: c.muted, marginTop: 4 },
 
   cameraWrap: { flex: 1, backgroundColor: "#000000" },
   camera: { flex: 1 },

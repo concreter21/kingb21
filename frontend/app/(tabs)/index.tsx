@@ -3,6 +3,7 @@ import { View, Text, ScrollView, Pressable, RefreshControl, ActivityIndicator } 
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
+import { Image } from "expo-image";
 import {
   ScanSmiley,
   Lock,
@@ -61,12 +62,20 @@ export default function Home() {
     <View style={s.container}>
       {/* Sticky header */}
       <View style={[s.header, { paddingTop: insets.top + 12 }]}>
-        <View>
-          <Text style={s.brand}>TK SAFETYGUARD</Text>
-          <Text style={s.hello}>Hi, {user?.name?.split(" ")[0] || "there"}</Text>
+        <View style={s.headerTop}>
+          <Image
+            source={require("../../assets/images/tk-logo-white.png")}
+            style={s.logo}
+            contentFit="contain"
+            transition={200}
+          />
+          <View style={s.roleBadge}>
+            <Text style={s.roleText}>{(user?.role || "WORKER").toUpperCase()}</Text>
+          </View>
         </View>
-        <View style={s.roleBadge}>
-          <Text style={s.roleText}>{(user?.role || "WORKER").toUpperCase()}</Text>
+        <View style={s.headerBottom}>
+          <Text style={s.hello}>Hi, {user?.name?.split(" ")[0] || "there"}</Text>
+          <Text style={s.brand}>SAFETYGUARD · OHS&amp;E</Text>
         </View>
       </View>
 
@@ -156,13 +165,13 @@ const useStyles = makeStyles((c) => ({
     paddingBottom: 16,
     borderBottomWidth: 2,
     borderBottomColor: c.borderStrong,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-end",
     backgroundColor: c.surface,
   },
-  brand: { fontFamily: fonts.mono, fontSize: 11, letterSpacing: 2, color: c.muted },
-  hello: { fontFamily: fonts.display, fontSize: 26, color: c.onSurface, marginTop: 2 },
+  headerTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  headerBottom: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end", marginTop: 14 },
+  logo: { width: 190, height: 26 },
+  brand: { fontFamily: fonts.mono, fontSize: 11, letterSpacing: 2, color: c.brandPrimary },
+  hello: { fontFamily: fonts.display, fontSize: 24, color: c.onSurface },
   roleBadge: { backgroundColor: c.brandPrimary, paddingHorizontal: 10, paddingVertical: 5 },
   roleText: { fontFamily: fonts.monoBold, fontSize: 10, color: c.onBrandPrimary, letterSpacing: 1 },
   loading: { paddingVertical: 80, alignItems: "center" },
