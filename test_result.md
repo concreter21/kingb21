@@ -159,3 +159,39 @@ test_plan:
 agent_communication:
     -agent: "main"
     -message: "Implemented risk templates + AI hazard library. Login field is 'token'. Owner password owner1234 no longer works — use safety@tk.com/test1234. Please test the 3 new/changed items and confirm existing photo-based assessments still work (regression). Avoid excessive Gemini calls: 1-2 AI assess calls are enough."
+
+  - task: "Email assessment report to a recipient (POST /api/assessments/{id}/email)"
+    implemented: true
+    working: "NA"
+    file: "backend/server.py, backend/email_util.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        -working: "NA"
+        -agent: "main"
+        -comment: "New endpoint emails a server-side-rendered HTML report (assessment_report_html) via Resend. Auth + visibility check + EmailStr validation + per-user rate limit (15/hr). Verified via curl: send to delivered@resend.dev returns {ok:true,email_id}, invalid email -> 422, unknown id -> 404."
+
+  - task: "Global floating Help/Support FAB on all tabs"
+    implemented: true
+    working: "NA"
+    file: "frontend/app/(tabs)/_layout.tsx, frontend/src/components/SupportFab.tsx, frontend/app/(tabs)/index.tsx"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: true
+    status_history:
+        -working: "NA"
+        -agent: "main"
+        -comment: "Moved the support FAB from Home into the tabs layout so it renders on every tab (Home/Assess/LOTO/Access/Profile). On the Assess tab it is lifted above the capture bar to avoid overlap. Verified via screenshots."
+
+  - task: "Email recipient box above Export PDF on assessment detail"
+    implemented: true
+    working: "NA"
+    file: "frontend/app/assessment/[id].tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        -working: "NA"
+        -agent: "main"
+        -comment: "Added 'EMAIL THIS REPORT' input + send button above the EXPORT PDF button; validates email, shows sent/error state. Verified via screenshot."

@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, ScrollView, Pressable, ActivityIndicator, Linking } from "react-native";
+import { View, Text, ScrollView, Pressable, ActivityIndicator, Linking, TextInput, Keyboard } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Image } from "expo-image";
 import * as Haptics from "expo-haptics";
-import { CaretLeft, FilePdf, CheckCircle, SealCheck, Clock, WarningOctagon } from "phosphor-react-native";
+import { CaretLeft, FilePdf, CheckCircle, SealCheck, Clock, WarningOctagon, PaperPlaneTilt } from "phosphor-react-native";
 
 import { makeStyles, fonts, useTheme } from "@/src/theme";
 import { RiskBadge, SectionLabel, StatusBadge } from "@/src/components/ui";
@@ -30,8 +30,28 @@ export default function AssessmentDetail() {
   const qc = useQueryClient();
   const [photoUri, setPhotoUri] = useState("");
   const [exporting, setExporting] = useState(false);
+  const [email, setEmail] = useState("");
+  const [emailStatus, setEmailStatus] = useState<"idle" | "sent" | "error">("idle");
 
   const { data: a, isLoading } = useQuery({ queryKey: ["assessment", id], queryFn: () => api.get(`/assessments/${id}`) });
+
+  const sendEmail = useMutation({
+    mutationFn: (recipient: string) => api.post(`/assessments/${id}/email`, { recipient }),
+    onSuccess: () => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      setEmailStatus("sent");
+      setEmail("");
+    },
+    onError: () => setEmailStatus("error"),
+  });
+
+  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+  const onSendEmail = () => {
+    if (!emailValid) return;
+    Keyboard.dismiss();
+    setEmailStatus("idle");
+    sendEmail.mutate(email.trim());
+  };
 
   const approve = useMutation({
     mutationFn: () => api.patch(`/assessments/${id}/approve`),
@@ -82,7 +102,7 @@ export default function AssessmentDetail() {
         <View style={{ width: 22 }} />
       </View>
 
-      <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 100 }} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 200 }} showsVerticalScrollIndicator={false}>
         {photoUri ? (
           <Image source={{ uri: photoUri }} style={s.photo} contentFit="cover" transition={200} />
         ) : null}
@@ -325,6 +345,38 @@ export default function AssessmentDetail() {
 
       {/* Sticky export bar */}
       <View style={[s.exportBar, { paddingBottom: insets.bottom + 12 }]}>
+        <Text style={s.emailLabel}>EMAIL THIS REPORT</Text>
+        <View style={s.emailRow}>
+          <TextInput
+            style={s.emailInput}
+            placeholder="recipient@email.com"
+            placeholderTextColor={colors.muted}
+            value={email}
+            onChangeText={(t) => { setEmail(t); if (emailStatus !== "idle") setEmailStatus("idle"); }}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoCorrect={false}
+            inputMode="email"
+            testID="email-recipient"
+          />
+          <Pressable
+            style={[s.emailBtn, (!emailValid || sendEmail.isPending) && s.emailBtnDisabled]}
+            onPress={onSendEmail}
+            disabled={!emailValid || sendEmail.isPending}
+            testID="send-email"
+          >
+            {sendEmail.isPending ? (
+              <ActivityIndicator color={colors.onBrandPrimary} />
+            ) : (
+              <PaperPlaneTilt size={20} color={colors.onBrandPrimary} weight="fill" />
+            )}
+          </Pressable>
+        </View>
+        {emailStatus === "sent" ? (
+          <Text style={s.emailSent} testID="email-sent">✓ Report sent to your recipient</Text>
+        ) : emailStatus === "error" ? (
+          <Text style={s.emailError} testID="email-error">Could not send. Check the address and try again.</Text>
+        ) : null}
         <Pressable style={s.exportBtn} onPress={onExport} disabled={exporting} testID="export-pdf">
           {exporting ? (
             <ActivityIndicator color={colors.onBrandPrimary} />
@@ -410,7 +462,14 @@ const useStyles = makeStyles((c) => ({
   actionText: { flex: 1, fontFamily: fonts.body, fontSize: 13, color: c.onSurfaceSecondary, lineHeight: 19 },
   legisCard: { backgroundColor: c.surfaceSecondary, padding: 14, gap: 6 },
   legisText: { fontFamily: fonts.mono, fontSize: 12, color: c.onSurfaceSecondary, lineHeight: 18 },
-  exportBar: { position: "absolute", left: 0, right: 0, bottom: 0, paddingHorizontal: 20, paddingTop: 12, borderTopWidth: 2, borderTopColor: c.borderStrong, backgroundColor: c.surface },
+  exportBar: { position: "absolute", left: 0, right: 0, bottom: 0, paddingHorizontal: 20, paddingTop: 12, borderTopWidth: 2, borderTopColor: c.borderStrong, backgroundColor: c.surface, gap: 10 },
+  emailLabel: { fontFamily: fonts.mono, fontSize: 10, color: c.muted, letterSpacing: 1 },
+  emailRow: { flexDirection: "row", gap: 10 },
+  emailInput: { flex: 1, minHeight: 48, borderWidth: 2, borderColor: c.borderStrong, backgroundColor: c.surface, paddingHorizontal: 12, fontFamily: fonts.body, fontSize: 14, color: c.onSurface },
+  emailBtn: { width: 56, minHeight: 48, backgroundColor: c.brandPrimary, borderWidth: 2, borderColor: c.borderStrong, alignItems: "center", justifyContent: "center" },
+  emailBtnDisabled: { opacity: 0.4 },
+  emailSent: { fontFamily: fonts.bodyMed, fontSize: 12, color: c.success },
+  emailError: { fontFamily: fonts.bodyMed, fontSize: 12, color: c.error },
   exportBtn: { minHeight: 54, backgroundColor: c.brandPrimary, borderWidth: 2, borderColor: c.borderStrong, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10 },
   exportText: { fontFamily: fonts.bodySemi, fontSize: 15, color: c.onBrandPrimary, letterSpacing: 0.5 },
 }));

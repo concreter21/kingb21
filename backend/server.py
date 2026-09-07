@@ -21,7 +21,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel, Field, EmailStr
 
 from emergentintegrations.llm.chat import LlmChat, UserMessage, ImageContent
-from email_util import send_email, otp_email_html, reset_email_html
+from email_util import send_email, otp_email_html, reset_email_html, assessment_report_html
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / ".env")
@@ -739,6 +739,37 @@ async def get_assessment(aid: str, user: dict = Depends(current_user)):
     if not doc:
         raise HTTPException(404, "Assessment not found")
     return doc
+
+
+class EmailReportIn(BaseModel):
+    recipient: EmailStr
+
+
+_email_report_hits: dict = {}
+
+
+@api.post("/assessments/{aid}/email")
+async def email_assessment(aid: str, body: EmailReportIn, user: dict = Depends(current_user)):
+    # Server-side template + record lookup (callers pass an ID + recipient, never markup).
+    q = {"id": aid, "deleted_at": None}
+    if user.get("role") not in PRIVILEGED_ROLES:
+        q["user_id"] = user["id"]
+    doc = await db.assessments.find_one(q, {"_id": 0})
+    if not doc:
+        raise HTTPException(404, "Assessment not found")
+
+    # Simple per-user rate limit: max 15 report emails / hour.
+    now = datetime.now(timezone.utc)
+    hits = [t for t in _email_report_hits.get(user["id"], []) if (now - t).total_seconds() < 3600]
+    if len(hits) >= 15:
+        raise HTTPException(429, "Too many emails sent — please try again later")
+    hits.append(now)
+    _email_report_hits[user["id"]] = hits
+
+    subject = f"TK SafetyGuard Report — {doc.get('title') or 'Safety Assessment'}"
+    html = assessment_report_html(doc)
+    email_id = await send_email(to=str(body.recipient), subject=subject, html=html)
+    return {"ok": True, "email_id": email_id, "recipient": str(body.recipient)}
 
 
 @api.delete("/assessments/{aid}")

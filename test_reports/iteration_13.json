@@ -1,0 +1,30 @@
+{
+  "summary": "Iteration 13 full-stack testing of (a) new POST /api/assessments/{id}/email endpoint and (b) global Help/Support FAB. Backend: 16/16 pytest tests passed against the live external ingress (email 200 with delivered@resend.dev returns ok+email_id, 401 without auth, 422 for bad email, 404 for unknown id, 404 for worker cross-user access; plus regression on auth-returns-'token', assessments list/get/approve, risk-templates list/detail/404, dashboard shape). Frontend (mobile 390x844): SupportFab renders on ALL 5 tabs (Home, AI Assess, LOTO, Access, Profile) and is correctly lifted above the CAPTURE & ANALYSE bar on Assess tab; tapping FAB from Home navigates to /support (Help & Support screen with chat input). On assessment detail (/assessment/{id}), EMAIL THIS REPORT box (testID email-recipient) + send button (send-email) render ABOVE EXPORT PDF (measured y-coords 695 vs 778); send button is disabled with empty input and enables on a valid email; sending 'delivered@resend.dev' returns success text via testID email-sent ('Report sent to your recipient'). No AI/Gemini calls were made during this run — an existing assessment was reused as directed.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter13_email_report.py",
+    "/app/test_reports/pytest/pytest_iter13_email.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "server.py is 1207 lines — still above the 700-line split threshold. Not blocking, but per-domain routers would improve maintainability.",
+    "_email_report_hits in server.py is an in-process dict — rate-limit state is lost on backend restart and not shared across workers. Acceptable for the current single-worker deployment; document as a follow-up if scaling.",
+    "SupportFab hides based on pathname includes 'assess', which also matches /assessment/[id] detail routes. On detail pages the FAB is not rendered (because the detail screen is outside the (tabs) layout), so the pathname branch has no visible effect there — behaviour is still correct but the condition could be tightened to endsWith('/assess') to avoid future confusion.",
+    "Tab bar entries in /app/frontend/app/(tabs)/_layout.tsx still lack testID props (pre-existing). Text-based navigation was used for testing."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter13_email_report.py (new — 16 tests)"
+  ],
+  "success_rate": {"backend": "100% (16/16)", "frontend": "100% (all FAB placements + email flow verified)"},
+  "seed_data_creation": "None. Tests reuse the seeded safety@tk.com account and an existing assessment. One real report email was dispatched to delivered@resend.dev via the send_email integration (Resend sandbox recipient).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Regression suite for the email-report + FAB feature lives at /app/backend/tests/test_iter13_email_report.py. Uses safety@tk.com/test1234 (privileged) + worker@tk.com/test1234 against BASE_URL=EXPO_PUBLIC_BACKEND_URL. Frontend testIDs verified this run: support-fab (global FAB in (tabs)/_layout), onboarding-start (first-launch splash), email-recipient/send-email/email-sent/email-error/export-pdf/detail-back on assessment detail. Login screen inputs have NO testID — inputs are found by DOM order (email first, password second) and LOG IN is a Pressable clicked via get_by_text('LOG IN', exact=True). Owner account halfbc175@gmail.com/owner1234 remains broken as noted in test_credentials.md.",
+  "rca_of_issue": "N/A — no issues found. New feature works end-to-end: server validates recipient with EmailStr (422 on bad address), enforces the same worker/officer scoping used for GET /assessments/{id} (Worker gets 404 for cross-user reads which correctly maps to a 404 on email as well), calls email_util.send_email which passes safety scan and posts to https://integrations.emergentagent.com/api/v1/email/send. Frontend TanStack mutation shows the email-sent testID on success and clears the input."
+}
