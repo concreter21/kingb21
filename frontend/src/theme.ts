@@ -16,7 +16,7 @@ const brand = {
   onSurfaceTertiary: "#FFFFFF",
   surfaceInverse: "#FFFFFF",
   onSurfaceInverse: "#0A4344",
-  muted: "#9DB8B7",
+  muted: "#C4D6D5",
 
   brand: "#E57C23",
   onBrand: "#FFFFFF",
@@ -53,30 +53,39 @@ export const themes: { light: ThemeColors; dark?: ThemeColors } = { light, dark 
 
 export const fonts = {
   display: "Montserrat-Bold",
-  displayMed: "Montserrat-SemiBold",
-  displayReg: "Montserrat-Medium",
-  light: "Montserrat-Light",
-  body: "Montserrat-Regular",
-  bodyMed: "Montserrat-Medium",
-  bodySemi: "Montserrat-SemiBold",
-  mono: "Montserrat-Medium",
+  displayMed: "Montserrat-Bold",
+  displayReg: "Montserrat-SemiBold",
+  light: "Montserrat-Medium",
+  body: "Montserrat-Medium",
+  bodyMed: "Montserrat-SemiBold",
+  bodySemi: "Montserrat-Bold",
+  mono: "Montserrat-SemiBold",
   monoBold: "Montserrat-Bold",
 };
 
-// risk level -> {bg, fg} using semantic tokens
-export function riskColors(level: string, c: ThemeColors) {
-  switch ((level || "").toLowerCase()) {
-    case "low":
-      return { bg: c.success, fg: c.onSuccess };
-    case "medium":
-      return { bg: c.warning, fg: c.onWarning };
-    case "high":
-      return { bg: c.error, fg: c.onError };
-    case "critical":
-      return { bg: c.critical, fg: c.onCritical };
-    default:
-      return { bg: c.surfaceTertiary, fg: c.onSurfaceTertiary };
-  }
+// Vivid, high-legibility risk colours.
+// red = high, yellow = medium, light green = low, dark red = critical/extreme.
+const RISK = {
+  critical: { bg: "#B91C1C", fg: "#FFFFFF" },
+  high: { bg: "#EF4444", fg: "#FFFFFF" },
+  medium: { bg: "#FACC15", fg: "#3A2E00" },
+  low: { bg: "#4ADE80", fg: "#05291B" },
+  none: { bg: "#86EFAC", fg: "#05291B" },
+  unknown: { bg: "#14625F", fg: "#FFFFFF" },
+};
+
+// risk level -> {bg, fg}. Handles words (high/medium/low/critical), synonyms
+// (extreme/moderate/negligible) and matrix codes (H12, M8, L3, E20).
+export function riskColors(level: string, _c?: ThemeColors) {
+  const v = (level || "").toLowerCase().trim();
+  if (!v || v === "—") return RISK.unknown;
+  if (v.includes("crit") || v.includes("extreme") || v.startsWith("e")) return RISK.critical;
+  if (v.includes("very high") || v.includes("severe")) return RISK.critical;
+  if (v.includes("high") || v.startsWith("h")) return RISK.high;
+  if (v.includes("negligible") || v.includes("very low")) return RISK.none;
+  if (v.includes("moderate") || v.includes("med") || v.startsWith("m")) return RISK.medium;
+  if (v.includes("low") || v.startsWith("l")) return RISK.low;
+  return RISK.unknown;
 }
 
 // Never pass null to the native Appearance module (crashes Expo Go on Android).

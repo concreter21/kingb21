@@ -7,7 +7,7 @@ import { Image } from "expo-image";
 import * as Haptics from "expo-haptics";
 import { CaretLeft, FilePdf, CheckCircle, SealCheck, Clock, WarningOctagon, PaperPlaneTilt } from "phosphor-react-native";
 
-import { makeStyles, fonts, useTheme } from "@/src/theme";
+import { makeStyles, fonts, useTheme, riskColors } from "@/src/theme";
 import { RiskBadge, SectionLabel, StatusBadge } from "@/src/components/ui";
 import { api, fileUrl } from "@/src/api";
 import { exportPdf } from "@/src/pdf";
@@ -111,9 +111,11 @@ export default function AssessmentDetail() {
           <Text style={s.title}>{r.title || a.title}</Text>
           <Text style={s.meta}>{new Date(a.created_at).toLocaleString("en-AU")} · {a.user_name}</Text>
 
-          <View style={s.overallRow}>
-            <Text style={s.overallLabel}>OVERALL RISK</Text>
-            <RiskBadge level={r.overall_risk_level} testID="overall-risk" />
+          <View style={[s.overallRow, { backgroundColor: riskColors(r.overall_risk_level).bg }]} testID="overall-risk">
+            <Text style={[s.overallLabel, { color: riskColors(r.overall_risk_level).fg }]}>OVERALL RISK</Text>
+            <Text style={[s.overallValue, { color: riskColors(r.overall_risk_level).fg }]}>
+              {(r.overall_risk_level || "—").toUpperCase()}
+            </Text>
           </View>
 
           <View style={s.summaryBox}>
@@ -401,8 +403,9 @@ const useStyles = makeStyles((c) => ({
   body: { padding: 20 },
   title: { fontFamily: fonts.display, fontSize: 24, color: c.onSurface, letterSpacing: -0.5 },
   meta: { fontFamily: fonts.mono, fontSize: 11, color: c.muted, marginTop: 4 },
-  overallRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 20, borderWidth: 2, borderColor: c.borderStrong, padding: 14 },
-  overallLabel: { fontFamily: fonts.monoBold, fontSize: 13, color: c.onSurface, letterSpacing: 1 },
+  overallRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 20, borderWidth: 2, borderColor: c.borderStrong, paddingHorizontal: 16, paddingVertical: 16 },
+  overallLabel: { fontFamily: fonts.monoBold, fontSize: 14, letterSpacing: 1 },
+  overallValue: { fontFamily: fonts.display, fontSize: 22, letterSpacing: 1 },
   summaryBox: { marginTop: 16, backgroundColor: c.surfaceSecondary, padding: 14, borderLeftWidth: 4, borderLeftColor: c.borderStrong },
   summaryText: { fontFamily: fonts.body, fontSize: 14, color: c.onSurfaceSecondary, lineHeight: 21 },
   signoffBox: { flexDirection: "row", alignItems: "center", gap: 12, padding: 14, marginTop: 16 },

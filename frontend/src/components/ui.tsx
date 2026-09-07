@@ -118,11 +118,10 @@ const useInputStyles = makeStyles((c) => ({
 // Badge (risk / status)
 // ---------------------------------------------------------------------------
 export function RiskBadge({ level, testID }: { level: string; testID?: string }) {
-  const { colors } = useTheme();
-  const rc = riskColors(level, colors);
+  const rc = riskColors(level);
   return (
-    <View testID={testID} style={{ backgroundColor: rc.bg, paddingHorizontal: 10, paddingVertical: 4 }}>
-      <Text style={{ color: rc.fg, fontFamily: fonts.monoBold, fontSize: 11, letterSpacing: 1 }}>
+    <View testID={testID} style={{ backgroundColor: rc.bg, paddingHorizontal: 12, paddingVertical: 6, minWidth: 64, alignItems: "center" }}>
+      <Text style={{ color: rc.fg, fontFamily: fonts.monoBold, fontSize: 12, letterSpacing: 1 }}>
         {(level || "—").toUpperCase()}
       </Text>
     </View>
@@ -145,7 +144,7 @@ export function StatusBadge({ label, bg, fg, testID }: { label: string; bg: stri
 export function SectionLabel({ children }: { children: string }) {
   const { colors } = useTheme();
   return (
-    <Text style={{ fontFamily: fonts.mono, fontSize: 12, letterSpacing: 2, color: colors.muted, textTransform: "uppercase" }}>
+    <Text style={{ fontFamily: fonts.monoBold, fontSize: 13, letterSpacing: 2, color: colors.brandPrimary, textTransform: "uppercase" }}>
       {children}
     </Text>
   );
