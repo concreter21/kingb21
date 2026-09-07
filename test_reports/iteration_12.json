@@ -1,0 +1,30 @@
+{
+  "summary": "Iteration 12 full-stack testing of the new Risk Assessment Templates feature. Backend: 10/10 pytest tests passed against the live external base URL (list, detail, 404, auth guards, template-based AI generation with 1 Gemini call, and image-only regression with 1 Gemini call). Frontend: template selector rendering & mode-gating verified on the AI Assess screen (Risk & SWMS show selector, Density & Machinery hide it; bottom-sheet modal lists all 8 seeded templates; selecting 'Slicer (High Care)' shows a chip with a working (x) clear and reveals the 'GENERATE FROM TEMPLATE (NO PHOTO)' button; the chip persists across Risk<->SWMS switches). AI Assess call limits respected: exactly 2 total Gemini calls used (1 template-only + 1 image-only regression). All 8 template IDs match seed data.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_risk_templates.py",
+    "/app/test_reports/pytest/pytest_iter12_risk_templates.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "server.py is now 1175 lines (grew from 1077) — still over the 700-line split threshold; splitting per-domain routers (auth, assess, templates, loto, equipment, access, admin, support) would help maintainability, though not blocking.",
+    "risk_templates.json is loaded once at import time (RISK_TEMPLATES = _load_risk_templates()). Any updates to the JSON require a backend restart to reflect — acceptable given the data is static seed content, but worth documenting or exposing a reload endpoint if content becomes dynamic.",
+    "assess.tsx style key 'chipScroll' / 'chipRow' are defined but never used (pre-existing). Non-blocking dead style.",
+    "Tab bar entries in /app/frontend/app/(tabs)/_layout.tsx lack testID props; testing agents must fall back to route navigation. Adding testID='tab-<name>' would improve testability."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_risk_templates.py (new)"
+  ],
+  "success_rate": {"backend": "100% (10/10)", "frontend": "100% (all template-picker flows verified)"},
+  "seed_data_creation": "None. Tests read seeded /app/backend/data/risk_templates.json (8 templates, 94 hazards) via the API. Template-only AI assessment creates one throwaway assessments document per run (with template_id/template_name set); image-only creates another. These are minor and can be cleared via POST /api/assessments/clear-all if desired.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Regression suite for the risk-templates feature lives at /app/backend/tests/test_risk_templates.py. It uses safety@tk.com / test1234 (privileged) and worker@tk.com / test1234, and hits BASE_URL from EXPO_PUBLIC_BACKEND_URL (external ingress). Two AI-assess calls per run — keep budget in mind. Frontend picker uses testIDs: template-select, template-modal-close, template-none, template-clear, generate-from-template, template-<template_id> (e.g. template-risk-assessment-form-slicer), and mode-<mode> for the segmented control. Onboarding requires tapping data-testid=onboarding-start on first launch before the login screen.",
+  "rca_of_issue": "N/A — no issues found. Feature works end-to-end: GET /api/risk-templates returns 8 shaped items requiring auth; detail returns full hazards[]; POST /api/ai/assess with template_id (no image) produces slicer-specific hazards (amputation/electrical/entanglement vocabulary confirmed by keyword match on response) and persists template_id + template_name on the document; image-only regression still works with template_id null."
+}

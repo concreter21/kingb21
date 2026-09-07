@@ -101,3 +101,61 @@
 #====================================================================================================
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
+
+user_problem_statement: "Incorporate The Kitchenary risk-assessment spreadsheet (rt.xlsx) as ready-made risk assessment templates users can pick and fill, and as a preset hazard/controls library the AI draws from during assessments."
+
+backend:
+  - task: "Risk template endpoints (list + detail)"
+    implemented: true
+    working: "NA"
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        -working: "NA"
+        -agent: "main"
+        -comment: "GET /api/risk-templates returns 8 templates; GET /api/risk-templates/{id} returns full hazards. Verified via curl."
+  - task: "AI assess template grounding + template_id"
+    implemented: true
+    working: "NA"
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        -working: "NA"
+        -agent: "main"
+        -comment: "POST /api/ai/assess accepts optional template_id; run_ai injects company HAZARD_LIBRARY for risk/swms/density and the selected template as authoritative baseline. Template-only (no image) generation works — verified Slicer returned company-aligned hazards. Ensure existing photo-based assess (no template) still works (regression)."
+
+frontend:
+  - task: "Template picker on Assess screen (Risk/SWMS)"
+    implemented: true
+    working: "NA"
+    file: "frontend/app/(tabs)/assess.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        -working: "NA"
+        -agent: "main"
+        -comment: "Template selector chip + bottom-sheet modal listing 8 templates; select shows chip with clear (x); GENERATE FROM TEMPLATE (NO PHOTO) button appears when a template is selected. Verified via screenshots."
+
+metadata:
+  created_by: "main_agent"
+  version: "1.1"
+  test_sequence: 12
+  run_ui: false
+
+test_plan:
+  current_focus:
+    - "Risk template endpoints (list + detail)"
+    - "AI assess template grounding + template_id"
+    - "Template picker on Assess screen (Risk/SWMS)"
+  stuck_tasks: []
+  test_all: false
+  test_priority: "high_first"
+
+agent_communication:
+    -agent: "main"
+    -message: "Implemented risk templates + AI hazard library. Login field is 'token'. Owner password owner1234 no longer works — use safety@tk.com/test1234. Please test the 3 new/changed items and confirm existing photo-based assessments still work (regression). Avoid excessive Gemini calls: 1-2 AI assess calls are enough."

@@ -1,0 +1,1022 @@
+[
+  {
+    "id": "risk-assessment-form-spinner",
+    "name": "Dryer / Spinner (High Care)",
+    "sheet": "Risk Assessment Form Spinner",
+    "department": "High Care",
+    "machine": "Dryer",
+    "site": "TK",
+    "hazards": [
+      {
+        "location": "High Care",
+        "category": "Electrical",
+        "hazard": "Dryer does not have reset button and is 415 volt, 3 phase",
+        "impact": "",
+        "consequence": "Serious",
+        "likelihood": "Possible",
+        "risk_level": "M13",
+        "controls": "No control"
+      },
+      {
+        "location": "High Care",
+        "category": "Electrical",
+        "hazard": "Electrical box not IP rated, water can get into the electrical box cause electrical damage",
+        "impact": "",
+        "consequence": "Major",
+        "likelihood": "Possible",
+        "risk_level": "H18",
+        "controls": "No control"
+      },
+      {
+        "location": "High Care",
+        "category": "Electrical",
+        "hazard": "Isolator switch is made from cheap plastic could break easily",
+        "impact": "",
+        "consequence": "Minor",
+        "likelihood": "Unlikely",
+        "risk_level": "L5",
+        "controls": "Isotation switch installed on machine"
+      },
+      {
+        "location": "High Care",
+        "category": "Electrical",
+        "hazard": "All buttons on the machine are not water proof & could cause water damage to the machine",
+        "impact": "",
+        "consequence": "Serious",
+        "likelihood": "Possible",
+        "risk_level": "M13",
+        "controls": "No control"
+      },
+      {
+        "location": "High Care",
+        "category": "Crushing",
+        "hazard": "Gas struts on the lifter does not soft close & could cause fractured fingers if operators do not keep fingers clear",
+        "impact": "",
+        "consequence": "Serious",
+        "likelihood": "Likely",
+        "risk_level": "H17",
+        "controls": "Pinch Point warning decals near the hinge Gas strut on the machine"
+      },
+      {
+        "location": "High Care",
+        "category": "Entanglement",
+        "hazard": "No break on machine, when door is lifted the basket within still spins rapidly",
+        "impact": "",
+        "consequence": "Major",
+        "likelihood": "Possible",
+        "risk_level": "H18",
+        "controls": "No control"
+      },
+      {
+        "location": "High Care",
+        "category": "Electrical",
+        "hazard": "No safety interlock switch on the lid",
+        "impact": "",
+        "consequence": "Major",
+        "likelihood": "Possible",
+        "risk_level": "H18",
+        "controls": "There is a safety switch on the lid but this was not set up correctly, buttons to adjust this is on the main display & can be changed by an operator, Safety switch is not austlian standard rated"
+      },
+      {
+        "location": "High Care",
+        "category": "Struck by / Against",
+        "hazard": "Accessing the inside of the tumbler, could hit head on the lid",
+        "impact": "",
+        "consequence": "Serious",
+        "likelihood": "Possible",
+        "risk_level": "M13",
+        "controls": "No control"
+      },
+      {
+        "location": "High Care",
+        "category": "Sharp Edge/Impliment",
+        "hazard": "Sharp edges on the lid of the machine",
+        "impact": "",
+        "consequence": "Minor",
+        "likelihood": "Possible",
+        "risk_level": "M8",
+        "controls": "No control"
+      }
+    ]
+  },
+  {
+    "id": "sleeving-environment",
+    "name": "Sleeving Environment",
+    "sheet": "Sleeving Environment",
+    "department": "Sleeving",
+    "machine": "Environment",
+    "site": "TK",
+    "hazards": [
+      {
+        "location": "Sleeving",
+        "category": "Manual handling",
+        "hazard": "twisting of the body when palletizing and changing tapae in machine, colleague may hit the the pole,",
+        "impact": "",
+        "consequence": "Serious",
+        "likelihood": "Likely",
+        "risk_level": "H17",
+        "controls": "Manual handling training Exercises TL to help direct correct movements, 30 minutes rotation each colleague"
+      },
+      {
+        "location": "Sleeving",
+        "category": "Struck by / Against",
+        "hazard": "limited space When pulling out pallet from cobot risk in colleague can hit by safety gate and manual pallet jack between line 2 and line 3",
+        "impact": "",
+        "consequence": "Major",
+        "likelihood": "Likely",
+        "risk_level": "E21",
+        "controls": "collegues need to move out from from line 2"
+      },
+      {
+        "location": "Sleeving",
+        "category": "Trip",
+        "hazard": "tripping hazard due to limited spacing in between line 7, line 3 and line2 in palletizing",
+        "impact": "",
+        "consequence": "Major",
+        "likelihood": "Almost Certain",
+        "risk_level": "E23",
+        "controls": "Nil"
+      },
+      {
+        "location": "Sleeving",
+        "category": "Trip",
+        "hazard": "when bringing sleeves in sleeving, pallets could pose a risk of trip with colleague carrying the boxes and not seeing the corner of the pallets",
+        "impact": "",
+        "consequence": "Major",
+        "likelihood": "Almost Certain",
+        "risk_level": "E23",
+        "controls": "Nil"
+      },
+      {
+        "location": "Sleeving",
+        "category": "Manual handling",
+        "hazard": "When colleagues are palletizing product from the roller conveyor to the pallets, the are having to turn their bodies, 90 degrees that could cause muscel strain,Twisting incorrectly, muscle strains",
+        "impact": "",
+        "consequence": "Serious",
+        "likelihood": "Likely",
+        "risk_level": "H17",
+        "controls": "Manual handling training Exercises TL to help direct correct movements, 30 minutes rotation each colleague"
+      },
+      {
+        "location": "sleeving",
+        "category": "Struck by / Against",
+        "hazard": "New line 13 end of line , risk of forklift vs pedestrain crash. Processing will be inside forklift operating area.",
+        "impact": "",
+        "consequence": "Serious",
+        "likelihood": "Likely",
+        "risk_level": "H17",
+        "controls": "Can we move mezzaine? implementing new forklift vs pedestrain process, stop line 13 and allow forklift to perform mezzaine task and open once forklift is back to its operating area."
+      },
+      {
+        "location": "Sleeving",
+        "category": "Crushing",
+        "hazard": "new colleagues unknown about pinch points within new line",
+        "impact": "",
+        "consequence": "Serious",
+        "likelihood": "Possible",
+        "risk_level": "M13",
+        "controls": "Nil"
+      },
+      {
+        "location": "Sleeving",
+        "category": "Fatigue",
+        "hazard": "Congestion, affects traffic flow, creating physical pressures on body parts while moving pallets, operating pallets jacks and collecting packaging pallets.",
+        "impact": "",
+        "consequence": "Extreme",
+        "likelihood": "Almost Certain",
+        "risk_level": "E25",
+        "controls": "Nil"
+      },
+      {
+        "location": "Sleeving",
+        "category": "Ergonomic",
+        "hazard": "Pushing pallets to new pallet wrapping area.While pushing pallets from line 1,2,7&6 colleague might have sore hand and back due to distance being longer to pallet wrap now",
+        "impact": "",
+        "consequence": "Major",
+        "likelihood": "Likely",
+        "risk_level": "E21",
+        "controls": "Nil"
+      },
+      {
+        "location": "Sleeving",
+        "category": "Entanglement",
+        "hazard": "line 13 Conveyer moving parts.",
+        "impact": "",
+        "consequence": "Major",
+        "likelihood": "Likely",
+        "risk_level": "E21",
+        "controls": "nil"
+      },
+      {
+        "location": "Sleeving",
+        "category": "Electrical",
+        "hazard": "coiled cable bundles underneat conveyers on line 13",
+        "impact": "",
+        "consequence": "Serious",
+        "likelihood": "Possible",
+        "risk_level": "M13",
+        "controls": "Nil"
+      },
+      {
+        "location": "Sleeving",
+        "category": "Environmental",
+        "hazard": "Floor scale marking",
+        "impact": "",
+        "consequence": "Serious",
+        "likelihood": "Possible",
+        "risk_level": "M13",
+        "controls": "Nil"
+      },
+      {
+        "location": "Sleeving",
+        "category": "Environmental",
+        "hazard": "Improper Staging, pallets are stored randomly on floor",
+        "impact": "",
+        "consequence": "Major",
+        "likelihood": "Likely",
+        "risk_level": "E21",
+        "controls": "Order only required boxes, packaging are not allowed to drop extra packaging around floor and stage extra pallets returned in case of rollover and breakdowns."
+      },
+      {
+        "location": "Sleeving Line 1",
+        "category": "Struck by / Against",
+        "hazard": "Colleagues moving pallets in/out could be struck by falling cartons from MEZ",
+        "impact": "",
+        "consequence": "Major",
+        "likelihood": "Unlikely",
+        "risk_level": "M14",
+        "controls": "Mesh guarding Pedsestrian / forklift zoning with safety barriers & training"
+      },
+      {
+        "location": "Sleeving Line 1",
+        "category": "Slip",
+        "hazard": "Colleagues only have 1 opening between line 6 & line 1, this congests the area & could cause people to slip trip fall",
+        "impact": "",
+        "consequence": "Minor",
+        "likelihood": "Possible",
+        "risk_level": "M8",
+        "controls": "Barrier"
+      },
+      {
+        "location": "Sleeving Line 6",
+        "category": "Slip",
+        "hazard": "Line 6 colleagues working in congested area with line 13 next to the area & requires a pallet of cardboard boxes next to the line, when a pallet for finished goods are being made, there is no way of pallets coming in/out of line 6 to for fill the cardboard boxes",
+        "impact": "",
+        "consequence": "Minor",
+        "likelihood": "Possible",
+        "risk_level": "M8",
+        "controls": "NIl"
+      },
+      {
+        "location": "Sleeving Line 6",
+        "category": "Inrush (Water/Mud/Other)",
+        "hazard": "When colleagues are rushing could pose trip hazards working in the congested area",
+        "impact": "",
+        "consequence": "Minor",
+        "likelihood": "Possible",
+        "risk_level": "M8",
+        "controls": "NIl"
+      },
+      {
+        "location": "Walkway to sleeving",
+        "category": "Struck by / Against",
+        "hazard": "Barriers have been moved to allow for line 13, colleagues walking in the area could hit their bodies on line 13 machinery within the walk way",
+        "impact": "",
+        "consequence": "Minor",
+        "likelihood": "Possible",
+        "risk_level": "M8",
+        "controls": ""
+      },
+      {
+        "location": "Walkway to sleeving",
+        "category": "Struck by / Against",
+        "hazard": "Emergency exit door exiting from line 6 HRA to sleeving when opened will now block the walk way within sleeving",
+        "impact": "",
+        "consequence": "Minor",
+        "likelihood": "Unlikely",
+        "risk_level": "L5",
+        "controls": "Signage Do Not Block"
+      },
+      {
+        "location": "Sleeving Line 2",
+        "category": "Struck by / Against",
+        "hazard": "Colleagues packing meals within the cartons of line 2 could be struck by pallets outgoing from line 3 & 7 due to the space avaliable",
+        "impact": "",
+        "consequence": "Serious",
+        "likelihood": "Likely",
+        "risk_level": "H17",
+        "controls": ""
+      },
+      {
+        "location": "Sleeving Line 2",
+        "category": "Slip",
+        "hazard": "Colleagues on line 2 could slip, trip, fall due to the congestion of the area",
+        "impact": "",
+        "consequence": "Serious",
+        "likelihood": "Likely",
+        "risk_level": "H17",
+        "controls": ""
+      },
+      {
+        "location": "Sleeving Line 7",
+        "category": "Slip",
+        "hazard": "Colleagues on line 7 could slip, trip, fall due to the congestion of the area,",
+        "impact": "",
+        "consequence": "Serious",
+        "likelihood": "Likely",
+        "risk_level": "H17",
+        "controls": ""
+      },
+      {
+        "location": "Sleeving Line 7",
+        "category": "Slip",
+        "hazard": "When the Co-Bot stops working operators require a pallet at line 7 that will reduce the walking area space within line 7 that could pose risks to slip/trip fall",
+        "impact": "",
+        "consequence": "Serious",
+        "likelihood": "Likely",
+        "risk_level": "H17",
+        "controls": ""
+      },
+      {
+        "location": "Sleeving Area",
+        "category": "Procedure / Process - Lack of",
+        "hazard": "Pallet wrapper is within the area & is causing more congestion",
+        "impact": "",
+        "consequence": "Serious",
+        "likelihood": "Possible",
+        "risk_level": "M13",
+        "controls": ""
+      },
+      {
+        "location": "pallet wrapper if moved",
+        "category": "Struck by / Against",
+        "hazard": "when forklift require to grab chep pallets, might create congestion and hit and damage property",
+        "impact": "",
+        "consequence": "Serious",
+        "likelihood": "Likely",
+        "risk_level": "H17",
+        "controls": ""
+      },
+      {
+        "location": "pallet wrapper if moved/dock",
+        "category": "process",
+        "hazard": "inbound dock,while receiving if wrapper stops, create a lot of pallet buffer, congesting line 5 , breakdown on HMPS and trouble shooting , colleagues on the way, might hit.",
+        "impact": "",
+        "consequence": "Serious",
+        "likelihood": "Likely",
+        "risk_level": "H17",
+        "controls": ""
+      }
+    ]
+  },
+  {
+    "id": "manual-spinner",
+    "name": "Manual Spinner (High Care)",
+    "sheet": "Manual Spinner",
+    "department": "High Care",
+    "machine": "Manual Spinner",
+    "site": "TK",
+    "hazards": [
+      {
+        "location": "High Care",
+        "category": "Manual handling",
+        "hazard": "Lifting product in to the manual spinner could be above shoulder height causing manual strain to the body",
+        "impact": "",
+        "consequence": "Minor",
+        "likelihood": "Unlikely",
+        "risk_level": "L5",
+        "controls": "Manual handling training Light weight leaf veggies"
+      },
+      {
+        "location": "High Care",
+        "category": "Manual handling",
+        "hazard": "Manualy spinning the handle could cause strain to the shoulder",
+        "impact": "",
+        "consequence": "Minor",
+        "likelihood": "Unlikely",
+        "risk_level": "L5",
+        "controls": "Manual handling training"
+      },
+      {
+        "location": "High Care",
+        "category": "Struck by / Against",
+        "hazard": "When cranking the handle, if the colleague has let go, the handle may hit the colleague in the hand/arm",
+        "impact": "",
+        "consequence": "Minor",
+        "likelihood": "Unlikely",
+        "risk_level": "L5",
+        "controls": ""
+      }
+    ]
+  },
+  {
+    "id": "sml-tumbler",
+    "name": "SML Tumbler / Dryer (High Care)",
+    "sheet": "SML Tumbler",
+    "department": "High Care",
+    "machine": "Dryer",
+    "site": "TK",
+    "hazards": [
+      {
+        "location": "High Care",
+        "category": "Electrical",
+        "hazard": "Wire could be damaged & expose live wire",
+        "impact": "",
+        "consequence": "Minor",
+        "likelihood": "Possible",
+        "risk_level": "M8",
+        "controls": "No control"
+      },
+      {
+        "location": "High Care",
+        "category": "Electrical",
+        "hazard": "No isolator on the machine",
+        "impact": "",
+        "consequence": "Serious",
+        "likelihood": "Possible",
+        "risk_level": "M13",
+        "controls": "Main isolator on power cable"
+      },
+      {
+        "location": "High Care",
+        "category": "Manual handling",
+        "hazard": "All product is loaded manually lifting from the ground to above should height",
+        "impact": "",
+        "consequence": "Serious",
+        "likelihood": "Possible",
+        "risk_level": "M13",
+        "controls": "No control"
+      },
+      {
+        "location": "High Care",
+        "category": "Manual handling",
+        "hazard": "All product is unloaded manually, to ground level",
+        "impact": "",
+        "consequence": "Serious",
+        "likelihood": "Possible",
+        "risk_level": "M13",
+        "controls": ""
+      },
+      {
+        "location": "High Care",
+        "category": "Manual handling",
+        "hazard": "Manually push the barrel to unload the product, hard to move",
+        "impact": "",
+        "consequence": "Serious",
+        "likelihood": "Possible",
+        "risk_level": "M13",
+        "controls": "No control"
+      },
+      {
+        "location": "High Care",
+        "category": "Entanglement",
+        "hazard": "The lid to the tumbler can be lifted while the machine is still operating and metal paddle still in rotation",
+        "impact": "",
+        "consequence": "Extreme",
+        "likelihood": "Possible",
+        "risk_level": "E22",
+        "controls": "E-Stop"
+      },
+      {
+        "location": "High Care",
+        "category": "Crushing",
+        "hazard": "Opening/ closing lid if the operator lets go of the lid it can fall hitting hand",
+        "impact": "",
+        "consequence": "Major",
+        "likelihood": "Possible",
+        "risk_level": "H18",
+        "controls": "No control"
+      }
+    ]
+  },
+  {
+    "id": "tumbler",
+    "name": "Tumbler (High Care)",
+    "sheet": "Tumbler",
+    "department": "High Care",
+    "machine": "Tumbler",
+    "site": "TK",
+    "hazards": [
+      {
+        "location": "High Care",
+        "category": "Electrical",
+        "hazard": "Wire could be tangled with the tumbler as the tumbler moves",
+        "impact": "",
+        "consequence": "Minor",
+        "likelihood": "Unlikely",
+        "risk_level": "L5",
+        "controls": "Wire on the ground"
+      },
+      {
+        "location": "High Care",
+        "category": "Structural damage",
+        "hazard": "Machine in operation moves and tilts could cause damage to the walls",
+        "impact": "",
+        "consequence": "Minor",
+        "likelihood": "Unlikely",
+        "risk_level": "L5",
+        "controls": "No control"
+      },
+      {
+        "location": "High Care",
+        "category": "Fall from height",
+        "hazard": "Dolly lifters do not have a safety latch on the lifter to secure inplace while it is lifted during cycle",
+        "impact": "",
+        "consequence": "Serious",
+        "likelihood": "Possible",
+        "risk_level": "M13",
+        "controls": "No control"
+      },
+      {
+        "location": "High Care",
+        "category": "Manual handling",
+        "hazard": "Removing product from the tumbler, operator needs to lean and remove the product by hand",
+        "impact": "",
+        "consequence": "Major",
+        "likelihood": "Possible",
+        "risk_level": "H18",
+        "controls": "No control"
+      },
+      {
+        "location": "High Care",
+        "category": "Manual handling",
+        "hazard": "Changing of the scrapper will be done in an awakward position, will cause a sore back",
+        "impact": "",
+        "consequence": "Major",
+        "likelihood": "Possible",
+        "risk_level": "H18",
+        "controls": "No control"
+      },
+      {
+        "location": "High Care",
+        "category": "Struck by / Against",
+        "hazard": "When the lid of the tumbler is open, colleagues could hit their head",
+        "impact": "",
+        "consequence": "Minor",
+        "likelihood": "Possible",
+        "risk_level": "M8",
+        "controls": "No control"
+      },
+      {
+        "location": "High Care",
+        "category": "Struck by / Against",
+        "hazard": "When the tumbler is in motion, going down with the tumbler could strike an operator",
+        "impact": "",
+        "consequence": "Minor",
+        "likelihood": "Possible",
+        "risk_level": "M8",
+        "controls": "Control panel is located on the front screen"
+      },
+      {
+        "location": "High Care",
+        "category": "Trip",
+        "hazard": "Dolly lifter legs could cause a trip hazard",
+        "impact": "",
+        "consequence": "Serious",
+        "likelihood": "Possible",
+        "risk_level": "M13",
+        "controls": "No control"
+      }
+    ]
+  },
+  {
+    "id": "risk-assessment-form-washer",
+    "name": "Washer (High Care)",
+    "sheet": "Risk Assessment Form Washer",
+    "department": "High Care",
+    "machine": "Washer",
+    "site": "TK",
+    "hazards": [
+      {
+        "location": "Low Risk",
+        "category": "Electrical",
+        "hazard": "No isolator on the machine",
+        "impact": "",
+        "consequence": "Serious",
+        "likelihood": "Possible",
+        "risk_level": "M13",
+        "controls": "Power socket next to machine to turn the machine on/off"
+      },
+      {
+        "location": "Low Risk",
+        "category": "Electrical",
+        "hazard": "Electrical box no lock on the box and the operator can access the electricals",
+        "impact": "",
+        "consequence": "Major",
+        "likelihood": "Possible",
+        "risk_level": "H18",
+        "controls": "Side latch installed on the box"
+      },
+      {
+        "location": "Low Risk",
+        "category": "Electrical",
+        "hazard": "Estop is fitted to the control panel of the machine and is away from where the operator is loading product into the machine.",
+        "impact": "",
+        "consequence": "Serious",
+        "likelihood": "Possible",
+        "risk_level": "M13",
+        "controls": "Estop on the control panel"
+      },
+      {
+        "location": "Low Risk",
+        "category": "Electrical",
+        "hazard": "Electrical box not IP rated, water can get into the electrical box cause electrical damage",
+        "impact": "",
+        "consequence": "Major",
+        "likelihood": "Possible",
+        "risk_level": "H18",
+        "controls": "No control"
+      },
+      {
+        "location": "Low Risk",
+        "category": "Food spoilage",
+        "hazard": "Plumbing tape was observed hanging above the product and water line, presenting a potential contamination hazard and increasing the risk of product spoilage.",
+        "impact": "",
+        "consequence": "Serious",
+        "likelihood": "Possible",
+        "risk_level": "M13",
+        "controls": "No control"
+      },
+      {
+        "location": "Low Risk",
+        "category": "Sharp Edge/Impliment",
+        "hazard": "Sharp edges on the machine may cause cuts or lacerations to personnel during operations use, cleaning, or maintenance.",
+        "impact": "",
+        "consequence": "Minor",
+        "likelihood": "Possible",
+        "risk_level": "M8",
+        "controls": "No control"
+      },
+      {
+        "location": "Low Risk",
+        "category": "Chemical",
+        "hazard": "Peracetic Acid (PAA) is a corrosive acid used for dosing. Exposure during handling or dosing may cause chemical burns, eye injuries, and respiratory irritation.",
+        "impact": "",
+        "consequence": "Major",
+        "likelihood": "Likely",
+        "risk_level": "E21",
+        "controls": "Eye wash station near by PPE, Face shield, Long chemical gloves, Long Apron"
+      },
+      {
+        "location": "Low Risk",
+        "category": "Entanglement",
+        "hazard": "Operator may place their hands near the exposed chain, creating a risk of entanglement, pinch-point injuries, crushing, or amputation during machine operation.",
+        "impact": "",
+        "consequence": "Serious",
+        "likelihood": "Possible",
+        "risk_level": "M13",
+        "controls": "No control"
+      },
+      {
+        "location": "Low Risk",
+        "category": "Food spoilage",
+        "hazard": "The gearbox is positioned above the open product and water area. Rust, lubricant, debris, or other contaminants from the gearbox could fall into the product stream, resulting in contamination and potential product spoilage.",
+        "impact": "",
+        "consequence": "Serious",
+        "likelihood": "Possible",
+        "risk_level": "M13",
+        "controls": "No control"
+      },
+      {
+        "location": "High Care",
+        "category": "Crushing",
+        "hazard": "Off loading the product from the washer, the conveyor belt chains and conveyor guards are exposed and potential for the operator to be injured",
+        "impact": "",
+        "consequence": "Serious",
+        "likelihood": "Possible",
+        "risk_level": "M13",
+        "controls": "No control"
+      }
+    ]
+  },
+  {
+    "id": "risk-assessment-form-slicer",
+    "name": "Slicer (High Care)",
+    "sheet": "Risk Assessment Form Slicer",
+    "department": "High Care",
+    "machine": "Slicer",
+    "site": "TK",
+    "hazards": [
+      {
+        "location": "High Care",
+        "category": "Electrical",
+        "hazard": "Wire could be damaged due to a mobile machine causing exposed wire & electrocution",
+        "impact": "",
+        "consequence": "Serious",
+        "likelihood": "Possible",
+        "risk_level": "M13",
+        "controls": "No control"
+      },
+      {
+        "location": "High Care",
+        "category": "Electrical",
+        "hazard": "No isolator on the machine, maintenance technician performs maintenance checks for breakdowns",
+        "impact": "",
+        "consequence": "Serious",
+        "likelihood": "Possible",
+        "risk_level": "M13",
+        "controls": "LOTO Process"
+      },
+      {
+        "location": "High Care",
+        "category": "Electrical",
+        "hazard": "Water or cleaning solution sprays directly onto or seeps into the control box during daily cleaning or contract cleaning",
+        "impact": "",
+        "consequence": "Serious",
+        "likelihood": "Possible",
+        "risk_level": "M13",
+        "controls": "No control"
+      },
+      {
+        "location": "High Care",
+        "category": "Amputation",
+        "hazard": "Operator places their hand into the feeding hole to clear a jam or push vegetables further down while the machine is running.",
+        "impact": "",
+        "consequence": "Extreme",
+        "likelihood": "Likely",
+        "risk_level": "E24",
+        "controls": "No control"
+      },
+      {
+        "location": "High Care",
+        "category": "Entanglement",
+        "hazard": "Loose clothing, long hair, or jewellery drops into the feeding hole.",
+        "impact": "",
+        "consequence": "Major",
+        "likelihood": "Likely",
+        "risk_level": "E21",
+        "controls": "No control"
+      },
+      {
+        "location": "High Care",
+        "category": "Amputation",
+        "hazard": "Operator attempts to clear debris and hand is pulled into the machine cutting finger / hand.",
+        "impact": "",
+        "consequence": "Extreme",
+        "likelihood": "Likely",
+        "risk_level": "E24",
+        "controls": "Signage on the machine, don\u2019t place hand into machine"
+      },
+      {
+        "location": "High Care",
+        "category": "Amputation",
+        "hazard": "Operator reaches their hand directly up into either of the bottom discharge holes to pull out packed or clogged vegetable debris while the machine is running or coasting.",
+        "impact": "",
+        "consequence": "Extreme",
+        "likelihood": "Likely",
+        "risk_level": "E24",
+        "controls": "No control"
+      },
+      {
+        "location": "High Care",
+        "category": "Amputation",
+        "hazard": "Operator reaches over the low side-guard vegetable conveyor belt to adjust a vegetable or clean the belt while it is in motion, getting drawn into the cutting head.",
+        "impact": "",
+        "consequence": "Extreme",
+        "likelihood": "Likely",
+        "risk_level": "E24",
+        "controls": "No control"
+      },
+      {
+        "location": "High Care",
+        "category": "Entanglement",
+        "hazard": "Operator opens the main silver casing (where the hinges and black knobs are) to clean the blades or change the cutting disc while the motor is spinning or coasting.",
+        "impact": "",
+        "consequence": "Extreme",
+        "likelihood": "Likely",
+        "risk_level": "E24",
+        "controls": "No control"
+      },
+      {
+        "location": "High Care",
+        "category": "Laceration",
+        "hazard": "A worker attempts to change the blades or clean inside the cutting chamber, could cause laceration.",
+        "impact": "",
+        "consequence": "Major",
+        "likelihood": "Possible",
+        "risk_level": "H18",
+        "controls": "PPE available"
+      },
+      {
+        "location": "High Care",
+        "category": "Laceration",
+        "hazard": "Because there is no active braking system, the heavy blade disc continues to spin silently operator could open the guarding & blade could still be spinning causing amputation",
+        "impact": "",
+        "consequence": "Extreme",
+        "likelihood": "Likely",
+        "risk_level": "E24",
+        "controls": "No control"
+      },
+      {
+        "location": "High Care",
+        "category": "Ergonomic",
+        "hazard": "Operators are forced to work in a sustained forward-flexed (hunched) position to load or unload the machine for hours at a time.",
+        "impact": "",
+        "consequence": "Major",
+        "likelihood": "Possible",
+        "risk_level": "H18",
+        "controls": "Manual handling training"
+      },
+      {
+        "location": "High Care",
+        "category": "Manual handling",
+        "hazard": "Feeding the machine is at a lower level & an operator will be in a hunched position could cause muscel starin",
+        "impact": "",
+        "consequence": "Major",
+        "likelihood": "Possible",
+        "risk_level": "H18",
+        "controls": "Manual handling training"
+      },
+      {
+        "location": "High Care",
+        "category": "Manual handling",
+        "hazard": "Picking up sliced product from ground level at the exit of the machine could cause muscle starain",
+        "impact": "",
+        "consequence": "Major",
+        "likelihood": "Possible",
+        "risk_level": "H18",
+        "controls": "Manual handling training"
+      }
+    ]
+  },
+  {
+    "id": "pro-seal",
+    "name": "Pro-Seal (Lasagne High Risk)",
+    "sheet": "Pro-Seal",
+    "department": "Lasagne High Risk / Proseal",
+    "machine": "Pro-Seal",
+    "site": "TK",
+    "hazards": [
+      {
+        "location": "Loading & Unload Tools from the Tool Rack",
+        "category": "Cutting",
+        "hazard": "Operator touching the sharp blade in the tool while pushing/pulling the tool.",
+        "impact": "1. Operator error.",
+        "consequence": "Insignificant",
+        "likelihood": "Possible",
+        "risk_level": "L4",
+        "controls": "Admin: SOP highlighting the risk. PPE: Operators must wear fabric gloves.; Admin: Include labelling on tool to highlight risk."
+      },
+      {
+        "location": "Loading & Unload Tools from the Tool Rack",
+        "category": "Heat",
+        "hazard": "Operator touching the heated surface of the tool while pushing the tool.",
+        "impact": "1. Operator error.",
+        "consequence": "Minor",
+        "likelihood": "Possible",
+        "risk_level": "M9",
+        "controls": "Admin: SOP highlighting the risk. PPE: Operators must wear fabric gloves.; Admin: Include labelling on tool to highlight risk."
+      },
+      {
+        "location": "Loading & Unload Tools from the Tool Rack",
+        "category": "Struck by / Against",
+        "hazard": "Operator getting hit by the tool while pushing the tools into the rack.",
+        "impact": "1. Operator forgets to push the safety lock forward.",
+        "consequence": "Minor",
+        "likelihood": "Possible",
+        "risk_level": "M9",
+        "controls": "Admin: SOP highlighting the risk and procedure."
+      },
+      {
+        "location": "Loading & Unload Tools from the Tool Rack",
+        "category": "Manual handling",
+        "hazard": "Operator getting back injuries due to move the heavy tool to and from the trolley.",
+        "impact": "1. Very heavy tool. >100kg",
+        "consequence": "Major",
+        "likelihood": "Possible",
+        "risk_level": "H17",
+        "controls": "Admin: SOP to include minimum 2 people to move the tool."
+      },
+      {
+        "location": "Loading & Unload Tools from the Tool Rack",
+        "category": "Manual handling",
+        "hazard": "Operator getting back injuries due to pushing the trolley loaded with heavy tool.",
+        "impact": "1. Very heavy tool. >100kg",
+        "consequence": "Major",
+        "likelihood": "Possible",
+        "risk_level": "H17",
+        "controls": "Admin: SOP to include minimum 2 people to move the trolley."
+      },
+      {
+        "location": "Loading & Unload Tools from the Tool Rack",
+        "category": "Ergonomic",
+        "hazard": "Operator getting ergonomic injuries while trying to remove Proseal arms from the rack.",
+        "impact": "1. Tight spot.",
+        "consequence": "Major",
+        "likelihood": "Likely",
+        "risk_level": "E21",
+        "controls": "Elimination: Reposition the racks in the way that allows approx. half a meter space for access."
+      },
+      {
+        "location": "Setting up Tool in Proseal",
+        "category": "Struck by / Against",
+        "hazard": "Personnel struck by moving gate.",
+        "impact": "1. Someone else swinged the door.",
+        "consequence": "Minor",
+        "likelihood": "Possible",
+        "risk_level": "M9",
+        "controls": "Admin: SOP to include practice caution when opening the gate."
+      },
+      {
+        "location": "Removing Jammed Trays",
+        "category": "Crushing",
+        "hazard": "Operators getting their hands crushed in Proseal.",
+        "impact": "1. Operator error.",
+        "consequence": "Serious",
+        "likelihood": "Possible",
+        "risk_level": "M13",
+        "controls": "Isolation: A guard in place to protect accidental access of hands."
+      },
+      {
+        "location": "Loading of Films",
+        "category": "Manual handling",
+        "hazard": "Operator getting hurt while lifting the films above shoulder level.",
+        "impact": "1. Heavy film roll. >15kg",
+        "consequence": "Minor",
+        "likelihood": "Possible",
+        "risk_level": "M9",
+        "controls": "Admin: SOP to include minimum 2 people to lift the film."
+      },
+      {
+        "location": "Cleaning Dirty Tool in Proseal while Operation.",
+        "category": "Heat",
+        "hazard": "Operator touching the heated surface of the tool while attempting to clean the heating surface contaminated with sauces.",
+        "impact": "1. Operator error.",
+        "consequence": "Serious",
+        "likelihood": "Possible",
+        "risk_level": "M13",
+        "controls": "Admin: SOP highlighting the risk. PPE: Operators must wear fabric gloves.; Admin: Include labelling on tool to highlight risk."
+      },
+      {
+        "location": "Removing waste film from the Proseal.",
+        "category": "Ergonomic",
+        "hazard": "Operator getting ergonomic injuries while trying to remove waste film where a valve is in a way.",
+        "impact": "1. Valve in a way.",
+        "consequence": "Minor",
+        "likelihood": "Likely",
+        "risk_level": "M14",
+        "controls": "Elimination: Relocate the valve so it is not in the way."
+      },
+      {
+        "location": "Performing Metal Test on Products",
+        "category": "Struck by / Against",
+        "hazard": "Operator getting struck by protruding rods which is part of the rail.",
+        "impact": "1. Equipment design.",
+        "consequence": "Minor",
+        "likelihood": "Likely",
+        "risk_level": "M14",
+        "controls": "Isolation: Consider a guard or shorten the rod to prevent striking."
+      },
+      {
+        "location": "Cleaning the Tools",
+        "category": "Crushing",
+        "hazard": "Operator getting finger crushed while assembling the bottom tool after cleaning.",
+        "impact": "1. Heavy tool assembly. >15kg",
+        "consequence": "Minor",
+        "likelihood": "Possible",
+        "risk_level": "M9",
+        "controls": "Admin: SOP highlighting the risk and procedure.; Admin: SOP to include minimum 2 people to move the trolley."
+      },
+      {
+        "location": "Cleaning the Tools",
+        "category": "Manual handling",
+        "hazard": "Operator getting hurt while lifting the bottom tool assembly.",
+        "impact": "1. Heavy tool assembly. >15kg",
+        "consequence": "Minor",
+        "likelihood": "Possible",
+        "risk_level": "M9",
+        "controls": "Admin: SOP highlighting the risk and procedure.; Admin: SOP to include minimum 2 people to move the trolley."
+      },
+      {
+        "location": "Removing Jammed Trays",
+        "category": "Friction",
+        "hazard": "Operators getting their hands frictioned by moving conveyor.",
+        "impact": "1. Operator error.",
+        "consequence": "Serious",
+        "likelihood": "Possible",
+        "risk_level": "M13",
+        "controls": "Engineering: Safety interlock mechanism in place."
+      },
+      {
+        "location": "Removing Jammed Trays",
+        "category": "Radiation",
+        "hazard": "Operators exposed to radiation while putting their hands into the X-Ray.",
+        "impact": "1. Operator error.",
+        "consequence": "Major",
+        "likelihood": "Possible",
+        "risk_level": "H17",
+        "controls": "Engineering: Safety interlock mechanism in place."
+      },
+      {
+        "location": "Removing Jammed Trays",
+        "category": "Cutting",
+        "hazard": "Operators getting their hands cut by sharp edges of the lid while shutting it.",
+        "impact": "1. Operator error.",
+        "consequence": "Insignificant",
+        "likelihood": "Possible",
+        "risk_level": "L6",
+        "controls": "Admin: Crush point label on lid to highlight risk.; Isolation: Install a rubber seal to isolate the sharp edges."
+      }
+    ]
+  }
+]

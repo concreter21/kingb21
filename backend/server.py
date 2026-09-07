@@ -59,6 +59,67 @@ api = APIRouter(prefix="/api")
 
 
 # ---------------------------------------------------------------------------
+# Risk assessment templates (seeded from The Kitchenary RA spreadsheet)
+# ---------------------------------------------------------------------------
+def _load_risk_templates():
+    try:
+        with open(ROOT_DIR / "data" / "risk_templates.json") as f:
+            return json.load(f)
+    except Exception as e:
+        logger.error(f"failed to load risk templates: {e}")
+        return []
+
+
+RISK_TEMPLATES = _load_risk_templates()
+RISK_TEMPLATES_BY_ID = {t["id"]: t for t in RISK_TEMPLATES}
+
+
+def _build_hazard_library() -> str:
+    """Compact category -> known controls map drawn from the real TK assessments,
+    used to ground every AI risk/SWMS assessment in the company's own controls."""
+    cat_controls: dict = {}
+    for t in RISK_TEMPLATES:
+        for h in t.get("hazards", []):
+            cat = (h.get("category") or "").strip()
+            ctrl = (h.get("controls") or "").strip()
+            if not cat:
+                continue
+            bag = cat_controls.setdefault(cat, set())
+            if ctrl and ctrl.lower() not in ("no control", "none"):
+                bag.add(ctrl)
+    lines = []
+    for cat in sorted(cat_controls):
+        ctrls = list(cat_controls[cat])[:5]
+        lines.append(f"- {cat}: " + (" | ".join(ctrls) if ctrls else "(define controls)"))
+    return "\n".join(lines)
+
+
+HAZARD_LIBRARY = _build_hazard_library()
+
+
+def _template_prompt(template_id: str) -> str:
+    t = RISK_TEMPLATES_BY_ID.get(template_id)
+    if not t:
+        return ""
+    rows = []
+    for i, h in enumerate(t.get("hazards", []), 1):
+        rows.append(
+            f'{i}. [{h.get("category","")}] {h.get("hazard","")} '
+            f'(Consequence: {h.get("consequence","")}, Likelihood: {h.get("likelihood","")}, '
+            f'Risk: {h.get("risk_level","")}) — Existing controls: {h.get("controls") or "None"}'
+        )
+    body = "\n".join(rows)
+    return (
+        f"\n\nCOMPANY RISK-ASSESSMENT TEMPLATE — '{t.get('name')}' "
+        f"(Department: {t.get('department')}, Machine/Process: {t.get('machine')}, Site: {t.get('site')}). "
+        "The hazards and existing controls below are The Kitchenary's own documented assessment for this "
+        "machine/process. Use them as the AUTHORITATIVE baseline: reproduce the relevant known hazards, keep the "
+        "company's existing controls, and ADD any additional hazards/controls visible in the photo or context. "
+        "Preserve the company's risk ratings where applicable.\n" + body
+    )
+
+
+# ---------------------------------------------------------------------------
 # Object storage helpers
 # ---------------------------------------------------------------------------
 def init_storage():
@@ -176,6 +237,7 @@ class AssessIn(BaseModel):
     title: str = ""
     location: str = ""
     notes: str = ""
+    template_id: Optional[str] = None
 
 
 class LotoIn(BaseModel):
@@ -320,10 +382,25 @@ async def identify_equipment(image_base64: str) -> dict:
         return {}
 
 
-async def run_ai(mode: str, image_base64: Optional[str], title: str, location: str, notes: str) -> dict:
+async def run_ai(mode: str, image_base64: Optional[str], title: str, location: str, notes: str,
+                 template_id: Optional[str] = None) -> dict:
     base_prompt = MODE_PROMPTS.get(mode, MODE_PROMPTS["risk"])
     context = f"\nContext provided by worker — Title: {title or 'N/A'}; Location: {location or 'N/A'}; Notes: {notes or 'N/A'}."
     full_prompt = base_prompt + context + "\n" + JSON_SCHEMA_INSTRUCTION
+
+    # Ground risk/SWMS/density assessments in The Kitchenary's own hazard/controls library.
+    if mode in ("risk", "swms", "density") and HAZARD_LIBRARY:
+        full_prompt += (
+            "\n\nCOMPANY HAZARD & CONTROLS LIBRARY — reference the following controls that The Kitchenary "
+            "already uses for each hazard category. Prefer and reuse these established controls where relevant "
+            "before proposing new ones:\n" + HAZARD_LIBRARY
+        )
+
+    # Selected ready-made template becomes the authoritative baseline for this assessment.
+    if template_id:
+        tp = _template_prompt(template_id)
+        if tp:
+            full_prompt += tp
 
     manual_sources: list = []
     if mode == "machinery":
@@ -546,19 +623,41 @@ async def _store_image_b64(user_id: str, image_base64: str) -> Optional[str]:
 # ---------------------------------------------------------------------------
 # Routes: AI assessments
 # ---------------------------------------------------------------------------
+@api.get("/risk-templates")
+async def list_risk_templates(user: dict = Depends(current_user)):
+    return [
+        {
+            "id": t["id"], "name": t["name"], "department": t.get("department", ""),
+            "machine": t.get("machine", ""), "site": t.get("site", ""),
+            "hazard_count": len(t.get("hazards", [])),
+        }
+        for t in RISK_TEMPLATES
+    ]
+
+
+@api.get("/risk-templates/{template_id}")
+async def get_risk_template(template_id: str, user: dict = Depends(current_user)):
+    t = RISK_TEMPLATES_BY_ID.get(template_id)
+    if not t:
+        raise HTTPException(404, "Template not found")
+    return t
+
+
 @api.post("/ai/assess")
 async def ai_assess(body: AssessIn, user: dict = Depends(current_user)):
     if body.image_base64 and len(body.image_base64) > MAX_IMAGE_B64:
         raise HTTPException(413, "Image too large")
-    result = await run_ai(body.mode, body.image_base64, body.title, body.location, body.notes)
+    result = await run_ai(body.mode, body.image_base64, body.title, body.location, body.notes, body.template_id)
     if body.mode != "machinery" and isinstance(result, dict):
         result["machinery"] = None
         result["hazard_report"] = None
     photo_path = await _store_image_b64(user["id"], body.image_base64) if body.image_base64 else None
+    tmpl = RISK_TEMPLATES_BY_ID.get(body.template_id) if body.template_id else None
     doc = {
         "id": str(uuid.uuid4()), "user_id": user["id"], "user_name": user.get("name", ""),
         "mode": body.mode, "title": result.get("title") or body.title or f"{body.mode.title()} Assessment",
         "location": body.location, "notes": body.notes, "photo_path": photo_path,
+        "template_id": body.template_id, "template_name": tmpl.get("name") if tmpl else None,
         "result": result, "created_at": datetime.now(timezone.utc).isoformat(),
         "status": "draft", "approved_by": None, "approved_by_role": None, "approved_at": None,
         "deleted_at": None,

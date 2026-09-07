@@ -1,17 +1,19 @@
 import React, { useCallback, useRef, useState } from "react";
-import { View, Text, Pressable, Linking, ActivityIndicator } from "react-native";
+import { View, Text, Pressable, Linking, ActivityIndicator, Modal, ScrollView } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter, useFocusEffect } from "expo-router";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import * as ImagePicker from "expo-image-picker";
 import * as Haptics from "expo-haptics";
-import { useQueryClient } from "@tanstack/react-query";
-import { Camera, Image as ImageIcon, Warning, ArrowClockwise, WarningOctagon, ClipboardText, UsersThree, Gear, Sparkle } from "phosphor-react-native";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Camera, Image as ImageIcon, Warning, ArrowClockwise, WarningOctagon, ClipboardText, UsersThree, Gear, Sparkle, CaretDown, X, Check, FileText } from "phosphor-react-native";
 
 import { makeStyles, fonts, useTheme } from "@/src/theme";
 import { Button } from "@/src/components/ui";
 import { api } from "@/src/api";
 import { storage } from "@/src/utils/storage";
+
+type Template = { id: string; name: string; department: string; machine: string; site: string; hazard_count: number };
 
 const MODES = [
   { key: "risk", label: "Risk", hint: "Live risk assessment", icon: WarningOctagon },
@@ -33,6 +35,16 @@ export default function Assess() {
   const [analysing, setAnalysing] = useState(false);
   const [error, setError] = useState("");
   const [aiEnabled, setAiEnabled] = useState(true);
+  const [templateModal, setTemplateModal] = useState(false);
+  const [template, setTemplate] = useState<Template | null>(null);
+
+  const templatesEnabled = mode === "risk" || mode === "swms";
+  const { data: templates = [] } = useQuery<Template[]>({
+    queryKey: ["risk-templates"],
+    queryFn: () => api.get("/risk-templates"),
+    enabled: aiEnabled,
+    staleTime: 1000 * 60 * 30,
+  });
 
   useFocusEffect(
     useCallback(() => {
@@ -42,12 +54,18 @@ export default function Assess() {
 
   const activeMode = MODES.find((m) => m.key === mode)!;
 
-  const analyse = async (image_base64: string) => {
+  const analyse = async (image_base64?: string) => {
     setError("");
     setAnalysing(true);
     try {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-      const doc = await api.post("/ai/assess", { mode, image_base64, location: "", notes: "" });
+      const doc = await api.post("/ai/assess", {
+        mode,
+        image_base64: image_base64 || null,
+        location: "",
+        notes: "",
+        template_id: templatesEnabled ? template?.id || null : null,
+      });
       qc.invalidateQueries({ queryKey: ["dashboard"] });
       qc.invalidateQueries({ queryKey: ["assessments"] });
       router.push(`/assessment/${doc.id}` as any);
@@ -160,6 +178,25 @@ export default function Assess() {
             );
           })}
         </View>
+
+        {templatesEnabled && aiEnabled ? (
+          <Pressable style={s.tmplSelect} onPress={() => setTemplateModal(true)} testID="template-select">
+            <FileText size={18} color={template ? colors.brandPrimary : colors.muted} weight="bold" />
+            <View style={{ flex: 1 }}>
+              <Text style={s.tmplSelectLabel}>{template ? "TEMPLATE" : "TEMPLATE (OPTIONAL)"}</Text>
+              <Text style={s.tmplSelectValue} numberOfLines={1}>
+                {template ? template.name : "AI from photo only — tap to pick a company template"}
+              </Text>
+            </View>
+            {template ? (
+              <Pressable hitSlop={10} onPress={() => setTemplate(null)} testID="template-clear">
+                <X size={18} color={colors.muted} weight="bold" />
+              </Pressable>
+            ) : (
+              <CaretDown size={18} color={colors.muted} weight="bold" />
+            )}
+          </Pressable>
+        ) : null}
       </View>
 
       {!aiEnabled ? (
@@ -180,6 +217,17 @@ export default function Assess() {
                 <Warning size={16} color={colors.onError} weight="fill" />
                 <Text style={s.errorText}>{error}</Text>
               </View>
+            ) : null}
+            {templatesEnabled && template ? (
+              <Pressable
+                style={[s.genBtn, analysing && s.captureDisabled]}
+                onPress={() => analyse()}
+                disabled={analysing}
+                testID="generate-from-template"
+              >
+                <Sparkle size={20} color={colors.onSurface} weight="fill" />
+                <Text style={s.genBtnText}>GENERATE FROM TEMPLATE (NO PHOTO)</Text>
+              </Pressable>
             ) : null}
             <View style={s.actions}>
           <Pressable
@@ -204,6 +252,52 @@ export default function Assess() {
           </View>
         </>
       )}
+
+      <Modal visible={templateModal} animationType="slide" transparent onRequestClose={() => setTemplateModal(false)}>
+        <View style={s.modalOverlay}>
+          <View style={[s.modalSheet, { paddingBottom: insets.bottom + 16 }]}>
+            <View style={s.modalHeader}>
+              <View style={{ flex: 1 }}>
+                <Text style={s.modalTitle}>RISK TEMPLATES</Text>
+                <Text style={s.modalSub}>The Kitchenary machine & process assessments</Text>
+              </View>
+              <Pressable hitSlop={10} onPress={() => setTemplateModal(false)} testID="template-modal-close">
+                <X size={24} color={colors.onSurface} weight="bold" />
+              </Pressable>
+            </View>
+            <ScrollView style={{ maxHeight: 420 }} showsVerticalScrollIndicator={false}>
+              <Pressable
+                style={[s.tmplRow, !template && s.tmplRowActive]}
+                onPress={() => { setTemplate(null); setTemplateModal(false); }}
+                testID="template-none"
+              >
+                <View style={{ flex: 1 }}>
+                  <Text style={s.tmplRowName}>No template</Text>
+                  <Text style={s.tmplRowMeta}>AI assesses from the photo only</Text>
+                </View>
+                {!template ? <Check size={20} color={colors.brandPrimary} weight="bold" /> : null}
+              </Pressable>
+              {templates.map((t) => {
+                const active = template?.id === t.id;
+                return (
+                  <Pressable
+                    key={t.id}
+                    style={[s.tmplRow, active && s.tmplRowActive]}
+                    onPress={() => { setTemplate(t); setTemplateModal(false); }}
+                    testID={`template-${t.id}`}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text style={s.tmplRowName}>{t.name}</Text>
+                      <Text style={s.tmplRowMeta}>{t.department} · {t.hazard_count} known hazards</Text>
+                    </View>
+                    {active ? <Check size={20} color={colors.brandPrimary} weight="bold" /> : null}
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -238,6 +332,42 @@ const useStyles = makeStyles((c) => ({
   segItemActive: { backgroundColor: c.brandPrimary },
   segLabel: { fontFamily: fonts.monoBold, fontSize: 11, color: c.onSurface, letterSpacing: 0.5 },
   segLabelActive: { color: c.onBrandPrimary },
+
+  tmplSelect: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginTop: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderWidth: 2,
+    borderColor: c.borderStrong,
+    backgroundColor: c.surface,
+  },
+  tmplSelectLabel: { fontFamily: fonts.mono, fontSize: 9, color: c.muted, letterSpacing: 1 },
+  tmplSelectValue: { fontFamily: fonts.bodySemi, fontSize: 13, color: c.onSurface, marginTop: 1 },
+
+  genBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    minHeight: 52,
+    borderWidth: 2,
+    borderColor: c.borderStrong,
+    backgroundColor: c.surface,
+  },
+  genBtnText: { fontFamily: fonts.bodySemi, fontSize: 13, color: c.onSurface, letterSpacing: 0.5 },
+
+  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" },
+  modalSheet: { backgroundColor: c.surface, borderTopWidth: 2, borderTopColor: c.borderStrong, paddingHorizontal: 20, paddingTop: 16 },
+  modalHeader: { flexDirection: "row", alignItems: "center", paddingBottom: 14, borderBottomWidth: 2, borderBottomColor: c.borderStrong, marginBottom: 8 },
+  modalTitle: { fontFamily: fonts.display, fontSize: 20, color: c.onSurface, letterSpacing: 0.5 },
+  modalSub: { fontFamily: fonts.body, fontSize: 12, color: c.muted, marginTop: 2 },
+  tmplRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: c.border },
+  tmplRowActive: { backgroundColor: c.brandPrimary + "12" },
+  tmplRowName: { fontFamily: fonts.bodySemi, fontSize: 15, color: c.onSurface },
+  tmplRowMeta: { fontFamily: fonts.mono, fontSize: 11, color: c.muted, marginTop: 2, letterSpacing: 0.5 },
 
   permBox: { flex: 1, backgroundColor: c.brandPrimary, alignItems: "center", justifyContent: "center", padding: 32, gap: 12 },
   permTitle: { fontFamily: fonts.display, fontSize: 18, color: c.onBrandPrimary, letterSpacing: 1 },

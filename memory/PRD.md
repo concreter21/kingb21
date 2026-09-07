@@ -56,3 +56,8 @@ Clone of https://thekitchenary.base44.app — an all-in-one OHS&E management pla
 ## Backlog
 - P1: Native iOS 26 NativeTabs variant; QR-code site access scanning; assessment sign-off/approval workflow.
 - P2: Multi-site support & roles/permissions; offline queue for assessments; incident photo display; enum validation + 404 on incident PATCH.
+
+## Implemented (2026-09-07, risk templates + AI hazard library)
+- Seeded The Kitchenary's real risk-assessment spreadsheet (rt.xlsx) into /app/backend/data/risk_templates.json — 8 machine/process templates (Dryer/Spinner, Sleeving Environment, Manual Spinner, SML Tumbler, Tumbler, Washer, Slicer, Pro-Seal), 94 known hazards with company controls.
+- Backend: GET /api/risk-templates (list) + GET /api/risk-templates/{id} (detail). run_ai grounds every risk/SWMS/density assessment in a company HAZARD & CONTROLS LIBRARY, and when a template_id is selected uses that template's hazards/controls as the authoritative baseline. AssessIn gained optional template_id; assessment doc stores template_id/template_name.
+- Frontend (assess.tsx): template picker (bottom-sheet modal) for Risk & SWMS modes; selected template shown as a chip with clear (x); "GENERATE FROM TEMPLATE (NO PHOTO)" button to produce an assessment from the known template without a photo. Verified end-to-end (curl + screenshots): template-only Slicer generation returned company-aligned hazards (Electrical/Amputation/Entanglement with real controls).
