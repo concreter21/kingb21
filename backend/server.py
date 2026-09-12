@@ -6,10 +6,14 @@ import os
 import logging
 import json
 import uuid
+import base64
+import asyncio
 from pathlib import Path
 from pydantic import BaseModel, Field
 from typing import List, Optional
 from datetime import datetime
+from google import genai
+from google.genai import types
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -17,6 +21,39 @@ load_dotenv(ROOT_DIR / '.env')
 mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
+
+GEMINI_TEXT_MODEL = os.environ.get("GEMINI_TEXT_MODEL", "gemini-2.5-flash")
+GEMINI_VISION_MODEL = os.environ.get("GEMINI_VISION_MODEL", "gemini-2.5-flash")
+
+
+def _get_gemini_key() -> str:
+    api_key = os.environ.get("GEMINI_API_KEY")
+    if not api_key:
+        raise HTTPException(status_code=500, detail="GEMINI_API_KEY not configured")
+    return api_key
+
+
+async def gemini_generate(system_msg: str, prompt: str, images_b64: Optional[List[str]] = None,
+                           model_name: Optional[str] = None) -> str:
+    """Call Gemini with a system instruction, a text prompt, and optional images.
+    Runs the (synchronous) SDK call in a thread so it doesn't block the event loop."""
+    api_key = _get_gemini_key()
+    mname = model_name or (GEMINI_VISION_MODEL if images_b64 else GEMINI_TEXT_MODEL)
+
+    contents: list = [prompt]
+    for img_b64 in (images_b64 or []):
+        contents.append(types.Part.from_bytes(data=base64.b64decode(img_b64), mime_type="image/jpeg"))
+
+    def _call():
+        client = genai.Client(api_key=api_key)
+        response = client.models.generate_content(
+            model=mname,
+            contents=contents,
+            config=types.GenerateContentConfig(system_instruction=system_msg),
+        )
+        return response.text
+
+    return await asyncio.to_thread(_call)
 
 app = FastAPI()
 api_router = APIRouter(prefix="/api")
@@ -208,28 +245,9 @@ async def get_status_checks():
     return [StatusCheck(**status_check) for status_check in status_checks]
 
 
-def _pick_model(provider: Optional[str], name: Optional[str]) -> tuple[str, str]:
-    """Return (provider, model_name) with safe defaults."""
-    p = (provider or "openai").lower()
-    if p == "gemini":
-        return ("gemini", name or "gemini-3-flash-preview")
-    if p == "anthropic":
-        return ("anthropic", name or "claude-sonnet-4-6")
-    return ("openai", name or "gpt-4o-mini")
-
-
 @api_router.post("/swms/generate", response_model=SWMSSection)
 async def generate_swms(req: SWMSGenerateRequest):
-    """Generate SWMS content using GPT."""
-    try:
-        from emergentintegrations.llm.chat import LlmChat, UserMessage
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"LLM library missing: {e}")
-
-    api_key = os.environ.get("EMERGENT_LLM_KEY")
-    if not api_key:
-        raise HTTPException(status_code=500, detail="EMERGENT_LLM_KEY not configured")
-
+    """Generate SWMS content using Gemini."""
     system_msg = (
         "You are a solar-installation safety expert generating a Safe Work Method "
         "Statement (SWMS) for domestic and commercial PV projects. "
@@ -245,16 +263,10 @@ async def generate_swms(req: SWMSGenerateRequest):
         "Generate the SWMS JSON now."
     )
 
-    session_id = f"swms-{uuid.uuid4()}"
-    prov, mname = _pick_model(req.model_provider, req.model_name)
-    chat = LlmChat(
-        api_key=api_key,
-        session_id=session_id,
-        system_message=system_msg,
-    ).with_model(prov, mname)
-
     try:
-        reply = await chat.send_message(UserMessage(text=user_prompt))
+        reply = await gemini_generate(system_msg, user_prompt, model_name=req.model_name)
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"LLM call failed: {e}")
         raise HTTPException(status_code=500, detail=f"LLM error: {str(e)[:200]}")
@@ -290,15 +302,6 @@ async def generate_swms(req: SWMSGenerateRequest):
 @api_router.post("/agent/chat", response_model=AgentChatResponse)
 async def agent_chat(req: AgentChatRequest):
     """SolarSafe in-app assistant for guidance & troubleshooting."""
-    try:
-        from emergentintegrations.llm.chat import LlmChat, UserMessage
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"LLM library missing: {e}")
-
-    api_key = os.environ.get("EMERGENT_LLM_KEY")
-    if not api_key:
-        raise HTTPException(status_code=500, detail="EMERGENT_LLM_KEY not configured")
-
     system_msg = (
         "You are SolarSafe Assistant, a helpful in-app AI for a solar-installation "
         "safety management platform. You help site supervisors and crew with: "
@@ -308,22 +311,19 @@ async def agent_chat(req: AgentChatRequest):
         "If asked about non-safety topics, gently redirect back to solar safety."
     )
 
-    chat = LlmChat(
-        api_key=api_key,
-        session_id=req.session_id,
-        system_message=system_msg,
-    ).with_model(*_pick_model(req.model_provider, req.model_name))
-
-    # Replay history so the model has context
+    # Fold recent history into the prompt so the model has context
+    history_lines = []
     for msg in (req.history or [])[-8:]:
-        if msg.role == "user":
-            try:
-                await chat.send_message(UserMessage(text=msg.content))
-            except Exception:
-                pass
+        role = "User" if msg.role == "user" else "Assistant"
+        history_lines.append(f"{role}: {msg.content}")
+    history_block = ("\n".join(history_lines) + "\n\n") if history_lines else ""
+
+    full_prompt = f"{history_block}User: {req.message}"
 
     try:
-        reply = await chat.send_message(UserMessage(text=req.message))
+        reply = await gemini_generate(system_msg, full_prompt, model_name=req.model_name)
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Agent error: {str(e)[:200]}")
 
@@ -344,15 +344,6 @@ def _strip_json_fences(text: str) -> str:
 @api_router.post("/hazards/from-voice", response_model=VoiceHazardResponse)
 async def structure_voice_hazard(req: VoiceHazardRequest):
     """Convert free-form voice transcript into a structured hazard report."""
-    try:
-        from emergentintegrations.llm.chat import LlmChat, UserMessage
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"LLM library missing: {e}")
-
-    api_key = os.environ.get("EMERGENT_LLM_KEY")
-    if not api_key:
-        raise HTTPException(status_code=500, detail="EMERGENT_LLM_KEY not configured")
-
     system_msg = (
         "You extract structured hazard reports from spoken transcripts of solar-installation crew members. "
         "Respond ONLY with valid JSON: "
@@ -368,14 +359,10 @@ async def structure_voice_hazard(req: VoiceHazardRequest):
         "Return the JSON now."
     )
 
-    chat = LlmChat(
-        api_key=api_key,
-        session_id=f"voice-{uuid.uuid4()}",
-        system_message=system_msg,
-    ).with_model("openai", "gpt-4o-mini")
-
     try:
-        reply = await chat.send_message(UserMessage(text=prompt))
+        reply = await gemini_generate(system_msg, prompt)
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"LLM error: {str(e)[:200]}")
 
@@ -403,15 +390,6 @@ async def structure_voice_hazard(req: VoiceHazardRequest):
 @api_router.post("/risk/assess", response_model=VisionRiskResponse)
 async def assess_risk_from_images(req: VisionRiskRequest):
     """Analyse site photos with vision AI and produce a full risk assessment + SWMS."""
-    try:
-        from emergentintegrations.llm.chat import LlmChat, UserMessage, ImageContent
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"LLM library missing: {e}")
-
-    api_key = os.environ.get("EMERGENT_LLM_KEY")
-    if not api_key:
-        raise HTTPException(status_code=500, detail="EMERGENT_LLM_KEY not configured")
-
     if not req.images:
         raise HTTPException(status_code=400, detail="At least one image is required")
 
@@ -442,18 +420,10 @@ async def assess_risk_from_images(req: VisionRiskRequest):
         "Analyse the attached photos and return the JSON now."
     )
 
-    chat = LlmChat(
-        api_key=api_key,
-        session_id=f"risk-{uuid.uuid4()}",
-        system_message=system_msg,
-    ).with_model("openai", "gpt-4o-mini")
-
-    image_contents = [ImageContent(image_base64=img) for img in clean_images]
-
     try:
-        reply = await chat.send_message(
-            UserMessage(text=prompt, file_contents=image_contents)
-        )
+        reply = await gemini_generate(system_msg, prompt, images_b64=clean_images)
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Vision LLM error: {e}")
         raise HTTPException(status_code=500, detail=f"Vision error: {str(e)[:200]}")
@@ -489,15 +459,6 @@ async def assess_risk_from_images(req: VisionRiskRequest):
 async def risk_watch(req: RiskWatchRequest):
     """Continuous-monitoring endpoint: analyse a single frame and return a
     concise alert if a new hazard appears in view."""
-    try:
-        from emergentintegrations.llm.chat import LlmChat, UserMessage, ImageContent
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"LLM library missing: {e}")
-
-    api_key = os.environ.get("EMERGENT_LLM_KEY")
-    if not api_key:
-        raise HTTPException(status_code=500, detail="EMERGENT_LLM_KEY not configured")
-
     if not req.image:
         raise HTTPException(status_code=400, detail="Image is required")
 
@@ -530,16 +491,10 @@ async def risk_watch(req: RiskWatchRequest):
         "Analyse the current frame and return JSON now."
     )
 
-    chat = LlmChat(
-        api_key=api_key,
-        session_id=f"watch-{uuid.uuid4()}",
-        system_message=system_msg,
-    ).with_model("openai", "gpt-4o-mini")
-
     try:
-        reply = await chat.send_message(
-            UserMessage(text=prompt, file_contents=[ImageContent(image_base64=img)])
-        )
+        reply = await gemini_generate(system_msg, prompt, images_b64=[img])
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Watch LLM error: {e}")
         raise HTTPException(status_code=500, detail=f"Watch error: {str(e)[:200]}")
